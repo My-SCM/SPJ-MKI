@@ -562,6 +562,7 @@
                 driver: '',
                 tipe_truk: '',
                 no_truk: '',
+                noHp: '', // Added noHp for WA Notification
                 pallet: '',
                 selectedTruckId: '',
                 selectedCustomerId: '',
@@ -683,6 +684,7 @@
                         driver: truck.driver || '',
                         tipe_truk: truck.type || '',
                         no_truk: truck.nopol || '',
+                        noHp: truck.noHp || '', // Capture Driver Phone for WA
                         tujuan: prev.tujuan.split('\nNo Tiket:')[0] + (truck.ticketNumber ? `\nNo Tiket: ${truck.ticketNumber}` : '')
                     }));
                     const netWeight = parseFloat(truck.netWeight) || 0;
@@ -693,7 +695,7 @@
                         total_berat: ton
                     })));
                 } else {
-                    setFormData(prev => ({ ...prev, selectedTruckId: '', driver: '', tipe_truk: '', no_truk: '' }));
+                    setFormData(prev => ({ ...prev, selectedTruckId: '', driver: '', tipe_truk: '', no_truk: '', noHp: '' }));
                 }
             };
 
@@ -845,7 +847,7 @@
                     const docPDF = createPDFObject({ header: formData, items: items.filter(i => i.nama) });
                     docPDF.save(`SJ_${formData.no_sj || 'Draft'}.pdf`);
                     setStatusMsg('Data Berhasil Disimpan, Armada BUSY & PDF Didownload!');
-                    setFormData(prev => ({ ...prev, tujuan: '', selectedCustomerId: '', customerName: '', no_so: '', priceOA: 0, selectedTruckId: '', driver: '', no_truk: '', tipe_truk: '' }));
+                    setFormData(prev => ({ ...prev, tujuan: '', selectedCustomerId: '', customerName: '', no_so: '', priceOA: 0, selectedTruckId: '', driver: '', no_truk: '', noHp: '', tipe_truk: '' }));
                     setItems([{ itemId: '', code: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }]);
                 } catch (error) {
                     console.error("Error saving:", error);
@@ -990,7 +992,7 @@
             );
         };
 
-        const TransactionHistory = ({ user }) => {
+        const TransactionHistory = ({ user, userData }) => {
             const [transactions, setTransactions] = useState([]);
             
             useEffect(() => {
@@ -1011,6 +1013,52 @@
                 
                 try {
                     if (!auth.currentUser) await signInAnonymously(auth);
+
+                    // --- WA NOTIFICATION START ---
+                    try {
+                        const settingsSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
+                        if (settingsSnap.exists()) {
+                            const settings = settingsSnap.data();
+                            const wa = settings.waConfig;
+                            if (wa && wa.token && wa.targetGroups) {
+                                // Construct Message
+                                const itemsList = t.items || [];
+                                let rincianProduk = "";
+                                itemsList.forEach((item, index) => {
+                                    rincianProduk += `${index + 1}. ${item.nama}\n   📦 ${item.qty_kirim} ${item.uom}\n   📝 Ket: ${item.notes || '-'}\n`;
+                                });
+
+                                const message = `*LAPORAN TRANSAKSI KIRIMAN*\n` +
+                                    `📅 Tgl : ${new Date().toLocaleString('id-ID')} WIB\n` +
+                                    `🔄 Tipe : Cetak SPJ\n` +
+                                    `👤 User : ${userData ? userData.username : 'Admin'}\n\n` +
+                                    `📄 No. POL : ${t.nopol || t.no_truk}\n` +
+                                    `      Driver : ${t.driver}\n` +
+                                    `      Tlp : ${t.noHp || '-'}\n` +
+                                    `📍 Tujuan : ${t.customerName}\n\n` +
+                                    `Rincian Produk\n` +
+                                    `--------------------------------\n` +
+                                    `${rincianProduk}`;
+
+                                const formData = new FormData();
+                                formData.append('target', wa.targetGroups);
+                                formData.append('message', message);
+
+                                await fetch("https://api.fonnte.com/send", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': wa.token
+                                    },
+                                    body: formData
+                                });
+                                console.log("WA Notification sent");
+                            }
+                        }
+                    } catch (waErr) {
+                        console.error("WA Send Error:", waErr);
+                        alert("Gagal kirim notif WA, tapi transaksi akan tetap diselesaikan.");
+                    }
+                    // --- WA NOTIFICATION END ---
                     
                     // 1. Update Status Transaksi -> COMPLETED
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', t.id), { status: 'COMPLETED' }); 
@@ -2165,7 +2213,7 @@
                         (userRole === 'admin' || userRole === 'user') && view === 'transaction' && React.createElement(TransactionForm, { user, trucks }),
                         (userRole === 'admin' || userRole === 'user') && view === 'tracking' && React.createElement(LiveTrackingPage, { user }), // Render Live Tracking
                         
-                        userRole === 'admin' && view === 'history' && React.createElement(TransactionHistory, { user }),
+                        userRole === 'admin' && view === 'history' && React.createElement(TransactionHistory, { user, userData }),
                         // Allow User to see Recap
                         (userRole === 'admin' || userRole === 'user') && view === 'recap' && React.createElement(RecapPage, { user }),
                         
