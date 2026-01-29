@@ -1058,15 +1058,31 @@
             });
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
+            // Tambahkan state loading
+            const [isSubmitting, setIsSubmitting] = useState(false);
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'trucks'), { 
-                    ...formData, 
-                    nopol: formData.nopol.toUpperCase(), 
-                    createdAt: serverTimestamp() 
-                });
-                setFormData({ nopol: '', driver: '', noHp: '', type: 'CDD', ticketNumber: '', netWeight: '' });
+                // Validasi manual sederhana agar user tahu jika ada yang kosong
+                if(!formData.nopol || !formData.driver) {
+                    return alert("Mohon lengkapi No Polisi dan Nama Driver!");
+                }
+
+                setIsSubmitting(true);
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'trucks'), { 
+                        ...formData, 
+                        nopol: formData.nopol.toUpperCase(), 
+                        createdAt: serverTimestamp() 
+                    });
+                    setFormData({ nopol: '', driver: '', noHp: '', type: 'CDD', ticketNumber: '', netWeight: '' });
+                    alert("Armada berhasil disimpan!");
+                } catch (error) {
+                    console.error("Error saving truck:", error);
+                    alert("Gagal menyimpan: " + error.message);
+                } finally {
+                    setIsSubmitting(false);
+                }
             };
 
             const startEdit = (truck) => {
@@ -1088,7 +1104,8 @@
             };
 
             const saveEdit = async () => {
-                if(!editData.nopol || !editData.driver) return;
+                if(!editData.nopol || !editData.driver) return alert("Data tidak boleh kosong!");
+                
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trucks', editingId), {
                         nopol: editData.nopol.toUpperCase(),
@@ -1099,9 +1116,10 @@
                         netWeight: editData.netWeight || ''       // UPDATE
                     });
                     setEditingId(null);
+                    alert("Perubahan berhasil disimpan!");
                 } catch (err) {
                     console.error("Gagal update:", err);
-                    alert("Gagal update data");
+                    alert("Gagal update data: " + err.message);
                 }
             };
 
@@ -1155,7 +1173,11 @@
                             )
                         ),
 
-                        React.createElement("button", { className: "w-full bg-blue-600 text-white p-2 rounded-lg font-bold hover:bg-blue-700 transition-colors" }, "Simpan Armada")
+                        React.createElement("button", { 
+                            type: "submit", 
+                            disabled: isSubmitting,
+                            className: "w-full bg-blue-600 text-white p-2 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50" 
+                        }, isSubmitting ? "Menyimpan..." : "Simpan Armada")
                     )
                 ),
 
