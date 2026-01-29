@@ -28,10 +28,13 @@
     </script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Courier+Prime&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
-
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Courier+Prime&display=swap');
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            background-color: #f8fafc; /* Slate 50 - Very light grey background */
+        }
         
         .font-print { font-family: 'Courier Prime', monospace; }
 
@@ -39,28 +42,30 @@
         .input-field { 
             display: block; 
             width: 100%; 
-            border-radius: 0.375rem; 
+            border-radius: 0.5rem; /* Lebih rounded */
             border-width: 1px; 
-            border-color: #d1d5db; 
+            border-color: #e2e8f0; 
+            background-color: #ffffff;
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
-            padding: 0.5rem; 
+            padding: 0.625rem; 
             font-size: 0.875rem; 
             line-height: 1.25rem; 
+            transition: all 0.2s;
         }
         .input-field:focus { 
-            border-color: #6366f1; 
-            ring: 2px; 
-            outline: 2px solid transparent; 
-            outline-offset: 2px; 
-            --tw-ring-color: #6366f1; 
+            border-color: #38bdf8; /* Sky 400 */
+            ring: 3px; 
+            outline: none; 
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
         }
         .label-text { 
             display: block; 
-            font-size: 0.875rem; 
-            line-height: 1.25rem; 
-            font-weight: 500; 
-            color: #374151; 
-            margin-bottom: 0.25rem;
+            font-size: 0.75rem; 
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600; 
+            color: #64748b; /* Slate 500 */
+            margin-bottom: 0.375rem;
         }
 
         /* Marquee Animation */
@@ -70,7 +75,7 @@
         }
         .animate-marquee {
             display: inline-block;
-            animation: marquee 10s linear infinite;
+            animation: marquee 15s linear infinite; /* Slower for professional look */
             white-space: nowrap;
         }
 
@@ -88,7 +93,7 @@
         }
 
         .preview-modal {
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(15, 23, 42, 0.6); /* Darker backdrop */
             backdrop-filter: blur(4px);
         }
 
@@ -106,7 +111,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body class="text-slate-800">
     <div id="root"></div>
 
     <script type="module">
@@ -117,7 +122,7 @@
             Box, Search, History, Settings, Save, AlertCircle, Users, 
             Package, Printer, Calendar, FileText, X, Eye, AlignJustify, 
             TrendingUp, MessageSquare, Pencil, Trash2, FileSpreadsheet, Download, Send, Lock, Info, AlertTriangle, LogOut,
-            Scale, Receipt, Database, Server, Briefcase, MapPin, Navigation
+            Scale, Receipt, Database, Server, Briefcase, MapPin, Navigation, Cloud
         } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -176,30 +181,32 @@
                 }
             };
 
-            return React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-200 p-4" },
-                React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm" },
-                    React.createElement("div", { className: "text-center mb-6" },
-                        React.createElement(TrendingUp, { className: "mx-auto text-blue-600 mb-2", size: 48 }),
-                        React.createElement("h1", { className: "text-2xl font-black text-slate-800" }, "MY TRADING"),
-                        React.createElement("p", { className: "text-slate-500 text-sm" }, "Sistem Logistik Terpadu")
+            return React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-sky-50 p-4" },
+                React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm border border-sky-100" },
+                    React.createElement("div", { className: "text-center mb-8" },
+                        React.createElement("div", { className: "w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-4" },
+                            React.createElement(Cloud, { className: "text-sky-600", size: 32 })
+                        ),
+                        React.createElement("h1", { className: "text-2xl font-bold text-slate-800 tracking-tight" }, "MY TRADING"),
+                        React.createElement("p", { className: "text-slate-500 text-sm font-medium" }, "Sistem Logistik Terpadu")
                     ),
-                    error && React.createElement("div", { className: "bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4 text-center font-bold" }, error),
-                    React.createElement("form", { onSubmit: handleLogin, className: "space-y-4" },
+                    error && React.createElement("div", { className: "bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4 text-center font-bold border border-red-100" }, error),
+                    React.createElement("form", { onSubmit: handleLogin, className: "space-y-5" },
                         React.createElement("div", null,
-                            React.createElement("label", { className: "block text-xs font-bold text-slate-500 mb-1" }, "USERNAME"),
+                            React.createElement("label", { className: "block text-xs font-bold text-slate-400 mb-1 tracking-wider" }, "USERNAME"),
                             React.createElement("input", { 
                                 type: "text", 
-                                className: "w-full p-3 border rounded-xl bg-slate-50 focus:bg-white focus:ring-2 ring-blue-500 outline-none transition-all",
+                                className: "w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 outline-none transition-all",
                                 value: username,
                                 onChange: e => setUsername(e.target.value),
                                 placeholder: "Masukkan username..."
                             })
                         ),
                         React.createElement("div", null,
-                            React.createElement("label", { className: "block text-xs font-bold text-slate-500 mb-1" }, "PASSWORD"),
+                            React.createElement("label", { className: "block text-xs font-bold text-slate-400 mb-1 tracking-wider" }, "PASSWORD"),
                             React.createElement("input", { 
                                 type: "password", 
-                                className: "w-full p-3 border rounded-xl bg-slate-50 focus:bg-white focus:ring-2 ring-blue-500 outline-none transition-all",
+                                className: "w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 outline-none transition-all",
                                 value: password,
                                 onChange: e => setPassword(e.target.value),
                                 placeholder: "Masukkan password..."
@@ -207,10 +214,10 @@
                         ),
                         React.createElement("button", { 
                             type: "submit",
-                            className: "w-full bg-blue-700 text-white font-bold py-3 rounded-xl hover:bg-blue-800 transition-transform active:scale-95 shadow-lg shadow-blue-200"
+                            className: "w-full bg-sky-600 text-white font-bold py-3.5 rounded-xl hover:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200 hover:shadow-sky-300"
                         }, "MASUK SISTEM"),
-                        React.createElement("div", { className: "text-center mt-4 text-xs text-slate-400" },
-                           "Versi 1.3.1 - Secure Login"
+                        React.createElement("div", { className: "text-center mt-6 text-xs text-slate-400 font-medium" },
+                           "Versi 1.4.1 - Secure Login"
                         )
                     )
                 )
@@ -233,23 +240,23 @@
 
             return React.createElement("div", { className: "space-y-6" }, 
                 // Header & Stats
-                React.createElement("div", { className: "bg-white p-6 rounded-xl border shadow-sm" },
-                    React.createElement("div", { className: "flex justify-between items-center mb-6" },
-                        React.createElement("h2", { className: "text-xl font-bold flex items-center gap-2" },
-                            React.createElement(MapPin, { className: "text-red-500" }), " Live Tracking TMS"
+                React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
+                    React.createElement("div", { className: "flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4" },
+                        React.createElement("h2", { className: "text-xl font-bold flex items-center gap-2 text-slate-800" },
+                            React.createElement(MapPin, { className: "text-sky-500" }), " Live Tracking TMS"
                         ),
-                        // TULISAN BERJALAN (MARQUEE)
-                        React.createElement("div", { className: "relative w-80 h-8 bg-red-100 rounded-full border border-red-200 overflow-hidden flex items-center px-4" },
+                        // TULISAN BERJALAN (MARQUEE) - Updated Style
+                        React.createElement("div", { className: "relative w-full md:w-96 h-8 bg-red-50 rounded-full border border-red-100 overflow-hidden flex items-center px-4" },
                             React.createElement("div", { className: "absolute inset-0 flex items-center" },
-                                React.createElement("span", { className: "animate-marquee text-xs font-bold text-red-600 uppercase tracking-wider" }, 
-                                    "⚠️ SYSTEM TERPUTUS DENGAN SERVER TRADING  ⚠️  MOHON HUBUNGI ADMIN JIKA TERDAPAT KENDALA DATA  ⚠️"
+                                React.createElement("span", { className: "animate-marquee text-[11px] font-bold text-red-500 uppercase tracking-wider" }, 
+                                    "⚠️ SYSTEM TERPUTUS DENGAN SERVER TRADING  —  MOHON HUBUNGI ADMIN JIKA TERDAPAT KENDALA DATA  —  GPS SIGNAL WEAK IN SOME AREAS"
                                 )
                             )
                         )
                     ),
                     
                     // GOOGLE MAPS EMBED
-                    React.createElement("div", { className: "aspect-video bg-slate-100 rounded-xl overflow-hidden border shadow-sm relative" },
+                    React.createElement("div", { className: "aspect-video bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shadow-inner relative" },
                         React.createElement("iframe", {
                             src: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126920.24097834448!2d106.75947813639148!3d-6.229746487930822!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e945e34b9d%3A0x5371bf0fdad786a2!2sJakarta%2C%20Special%20Capital%20Region%20of%20Jakarta!5e0!3m2!1sen!2sid!4v1708500000000!5m2!1sen!2sid",
                             width: "100%",
@@ -259,73 +266,86 @@
                             loading: "lazy",
                             referrerPolicy: "no-referrer-when-downgrade"
                         }),
-                        React.createElement("div", { className: "absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2" },
-                            React.createElement("div", { className: "w-2 h-2 bg-red-500 rounded-full animate-ping" }),
+                        React.createElement("div", { className: "absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border border-slate-100 flex items-center gap-2 text-slate-600" },
+                            React.createElement("div", { className: "w-2 h-2 bg-green-500 rounded-full animate-ping" }),
                             "Realtime Traffic"
                         )
                     ),
 
                     // Stats Grid
                     React.createElement("div", { className: "mt-6 grid grid-cols-1 md:grid-cols-3 gap-4" },
-                        React.createElement("div", { className: "p-4 bg-blue-50 rounded-xl border border-blue-100" },
-                            React.createElement("div", { className: "flex items-center gap-2 mb-1" },
-                                React.createElement(Truck, { size: 16, className: "text-blue-600" }),
-                                React.createElement("h3", { className: "text-xs text-blue-600 font-bold uppercase tracking-wider" }, "Total Unit Jalan")
+                        React.createElement("div", { className: "p-5 bg-sky-50 rounded-xl border border-sky-100 flex flex-col justify-between" },
+                            React.createElement("div", { className: "flex items-center gap-2 mb-2" },
+                                React.createElement("div", { className: "p-2 bg-sky-100 rounded-lg" },
+                                    React.createElement(Truck, { size: 18, className: "text-sky-600" })
+                                ),
+                                React.createElement("h3", { className: "text-xs text-sky-700 font-bold uppercase tracking-wider" }, "Total Unit Jalan")
                             ),
-                            React.createElement("p", { className: "text-2xl font-black text-slate-800" }, transactions.length > 0 ? transactions.length : "0")
+                            React.createElement("p", { className: "text-3xl font-black text-slate-800" }, transactions.length > 0 ? transactions.length : "0")
                         ),
-                        React.createElement("div", { className: "p-4 bg-green-50 rounded-xl border border-green-100" },
-                            React.createElement("div", { className: "flex items-center gap-2 mb-1" },
-                                React.createElement(CheckCircle, { size: 16, className: "text-green-600" }),
-                                React.createElement("h3", { className: "text-xs text-green-600 font-bold uppercase tracking-wider" }, "Terkirim (Hari Ini)")
+                        React.createElement("div", { className: "p-5 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-between" },
+                            React.createElement("div", { className: "flex items-center gap-2 mb-2" },
+                                React.createElement("div", { className: "p-2 bg-emerald-100 rounded-lg" },
+                                    React.createElement(CheckCircle, { size: 18, className: "text-emerald-600" })
+                                ),
+                                React.createElement("h3", { className: "text-xs text-emerald-700 font-bold uppercase tracking-wider" }, "Terkirim (Hari Ini)")
                             ),
-                            React.createElement("p", { className: "text-2xl font-black text-slate-800" }, "8")
+                            React.createElement("p", { className: "text-3xl font-black text-slate-800" }, "8")
                         ),
-                        React.createElement("div", { className: "p-4 bg-orange-50 rounded-xl border border-orange-100" },
-                             React.createElement("div", { className: "flex items-center gap-2 mb-1" },
-                                React.createElement(Navigation, { size: 16, className: "text-orange-600" }),
-                                React.createElement("h3", { className: "text-xs text-orange-600 font-bold uppercase tracking-wider" }, "Sedang Transit")
+                        React.createElement("div", { className: "p-5 bg-amber-50 rounded-xl border border-amber-100 flex flex-col justify-between" },
+                             React.createElement("div", { className: "flex items-center gap-2 mb-2" },
+                                React.createElement("div", { className: "p-2 bg-amber-100 rounded-lg" },
+                                    React.createElement(Navigation, { size: 18, className: "text-amber-600" })
+                                ),
+                                React.createElement("h3", { className: "text-xs text-amber-700 font-bold uppercase tracking-wider" }, "Sedang Transit")
                             ),
-                            React.createElement("p", { className: "text-2xl font-black text-slate-800" }, "3")
+                            React.createElement("p", { className: "text-3xl font-black text-slate-800" }, "3")
                         )
                     )
                 ),
 
                 // Active List
-                React.createElement("div", { className: "bg-white p-6 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold mb-4 flex items-center gap-2" },
-                         React.createElement(Truck, { size: 18, className: "text-slate-500" }), "Status Pengiriman Aktif"
+                React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
+                    React.createElement("h3", { className: "font-bold mb-6 flex items-center gap-2 text-slate-700" },
+                         React.createElement(Truck, { size: 20, className: "text-sky-500" }), "Status Pengiriman Aktif"
                     ),
-                    React.createElement("div", { className: "space-y-3" },
+                    React.createElement("div", { className: "space-y-4" },
                         transactions.length === 0 ? 
-                        React.createElement("p", { className: "text-center text-slate-400 py-4 italic" }, "Tidak ada armada yang sedang berjalan.") :
+                        React.createElement("div", { className: "text-center py-10 border-2 border-dashed border-slate-100 rounded-xl bg-slate-50" },
+                            React.createElement(Truck, { className: "mx-auto text-slate-300 mb-2", size: 32 }),
+                            React.createElement("p", { className: "text-slate-400 font-medium" }, "Tidak ada armada yang sedang berjalan.")
+                        ) :
                         transactions.map((t, idx) => {
                             const isCompleted = t.status === 'COMPLETED';
-                            return React.createElement("div", { key: t.id, className: "flex items-start gap-4 p-4 border rounded-lg hover:bg-slate-50 transition-colors" },
-                                React.createElement("div", { className: "w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0" },
-                                    React.createElement(Truck, { size: 20, className: "text-blue-600" })
+                            return React.createElement("div", { key: t.id, className: "flex items-start gap-4 p-5 border border-slate-100 rounded-xl hover:bg-sky-50/30 hover:border-sky-100 transition-all shadow-sm" },
+                                React.createElement("div", { className: "w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center shrink-0 border border-sky-200" },
+                                    React.createElement(Truck, { size: 24, className: "text-sky-600" })
                                 ),
                                 React.createElement("div", { className: "flex-1" },
                                     React.createElement("div", { className: "flex justify-between items-start" },
-                                        React.createElement("h4", { className: "font-bold text-sm" }, t.no_sj),
-                                        React.createElement("span", { className: `text-[10px] font-bold px-2 py-0.5 rounded ${isCompleted ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}` }, isCompleted ? "SELESAI" : "OTW")
+                                        React.createElement("div", null, 
+                                            React.createElement("h4", { className: "font-bold text-slate-800" }, t.no_sj),
+                                            React.createElement("p", { className: "text-xs text-slate-500 mt-0.5" }, 
+                                                React.createElement("span", { className: "font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" }, t.nopol), " • ", t.driver
+                                            )
+                                        ),
+                                        React.createElement("span", { className: `text-[10px] font-bold px-2.5 py-1 rounded-full border ${isCompleted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-sky-50 border-sky-200 text-sky-700'}` }, isCompleted ? "SELESAI" : "OTW")
                                     ),
-                                    React.createElement("p", { className: "text-xs text-slate-500 mt-1" }, 
-                                        React.createElement("span", { className: "font-bold" }, t.nopol), " • ", t.driver
-                                    ),
-                                    React.createElement("p", { className: "text-xs font-bold text-slate-700 mt-1" }, 
+                                    React.createElement("p", { className: "text-sm font-semibold text-slate-700 mt-2 mb-3" }, 
                                         "Tujuan: ", t.customerName || "Customer Umum"
                                     ),
-                                    React.createElement("div", { className: "mt-2 w-full bg-slate-200 rounded-full h-1.5" },
-                                        React.createElement("div", { className: `h-1.5 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-600'}`, style: { width: isCompleted ? '100%' : `${Math.floor(Math.random() * 80) + 10}%` } })
+                                    // Progress Bar
+                                    React.createElement("div", { className: "w-full bg-slate-100 rounded-full h-2 overflow-hidden" },
+                                        React.createElement("div", { className: `h-full rounded-full transition-all duration-1000 ${isCompleted ? 'bg-emerald-500' : 'bg-sky-500'}`, style: { width: isCompleted ? '100%' : `${Math.floor(Math.random() * 80) + 10}%` } })
                                     ),
                                     // Footer with EPOD
-                                    React.createElement("div", { className: "flex justify-between items-center mt-2" },
-                                        React.createElement("div", { className: "text-[10px] text-slate-400" },
-                                            React.createElement("span", null, isCompleted ? "Tiba di Lokasi" : "Est. 2 Jam")
+                                    React.createElement("div", { className: "flex justify-between items-center mt-3 pt-3 border-t border-slate-100" },
+                                        React.createElement("div", { className: "text-xs font-medium text-slate-400 flex items-center gap-1" },
+                                            React.createElement(Navigation, { size: 12 }),
+                                            React.createElement("span", null, isCompleted ? "Tiba di Lokasi" : "Est. Tiba 2 Jam")
                                         ),
-                                        React.createElement("div", { className: `flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border ${isCompleted ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-100 border-slate-200 text-slate-500'}` },
-                                            React.createElement(Receipt, { size: 10 }),
+                                        React.createElement("div", { className: `flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full border ${isCompleted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'}` },
+                                            React.createElement(Receipt, { size: 12 }),
                                             React.createElement("span", { className: "font-bold" }, isCompleted ? "EPOD: Diterima" : "EPOD: Pending")
                                         )
                                     )
@@ -338,25 +358,26 @@
         };
 
         // 3. INSTRUCTION PAGE
+        // ... (No logic change, just visual consistency handled by global styles)
         const InstructionPage = () => {
             return React.createElement("div", { className: "space-y-6 pb-20 no-print" },
-                React.createElement("div", { className: "bg-white p-6 rounded-xl border shadow-sm" },
-                    React.createElement("h2", { className: "text-xl font-bold mb-2 flex items-center gap-2" },
-                        React.createElement(Info, { className: "text-blue-600" }), " Instruksi Kerja (SOP)"
+                React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
+                    React.createElement("h2", { className: "text-xl font-bold mb-2 flex items-center gap-2 text-slate-800" },
+                        React.createElement(Info, { className: "text-sky-600" }), " Instruksi Kerja (SOP)"
                     ),
                     React.createElement("p", { className: "text-sm text-slate-600" },
                         "Panduan standar operasional untuk penggunaan aplikasi MyTrading."
                     )
                 ),
-                React.createElement("div", { className: "bg-white p-5 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold text-md mb-3 text-slate-800 flex items-center gap-2" },
-                        React.createElement(Package, { className: "text-blue-500", size: 18 }), " 1. Master Produk / Barang"
+                React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
+                    React.createElement("h3", { className: "font-bold text-md mb-4 text-slate-800 flex items-center gap-2" },
+                        React.createElement(Package, { className: "text-sky-500", size: 20 }), " 1. Master Produk / Barang"
                     ),
                     React.createElement("img", {
                         src: "https://lh3.googleusercontent.com/d/1wIkcD0P8Cp353LYf72gMzm3tTyDP0AGa",
-                        className: "w-full rounded-lg border mb-3"
+                        className: "w-full rounded-xl border border-slate-200 shadow-sm mb-4"
                     }),
-                    React.createElement("ul", { className: "list-disc list-inside text-xs text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg" },
+                    React.createElement("ul", { className: "list-disc list-inside text-sm text-slate-600 space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100" },
                         React.createElement("li", null, "Gunakan menu ini untuk mendaftarkan barang baru."),
                         React.createElement("li", null, "Input Nama Barang, Satuan, dan Keterangan.")
                     )
@@ -433,33 +454,49 @@
             };
 
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border shadow-sm" },
-                    React.createElement("h2", { className: "font-bold mb-4 flex gap-2 items-center" }, 
-                        React.createElement(FileSpreadsheet, { className: "text-green-600" }), " Rekapitulasi Data & Validasi"
+                React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
+                    React.createElement("h2", { className: "font-bold text-lg mb-6 flex gap-2 items-center text-slate-800" }, 
+                        React.createElement(FileSpreadsheet, { className: "text-emerald-500" }), " Rekapitulasi Data & Validasi"
                     ),
                     React.createElement("div", { className: "flex flex-col md:flex-row gap-4 items-end mb-6" },
-                        React.createElement("div", { className: "w-full" }, React.createElement("label", { className: "text-xs font-bold text-slate-500" }, "DARI TANGGAL"), React.createElement("input", { type: "date", className: "w-full p-2 border rounded-lg", value: filter.startDate, onChange: e => setFilter({...filter, startDate: e.target.value}) })),
-                        React.createElement("div", { className: "w-full" }, React.createElement("label", { className: "text-xs font-bold text-slate-500" }, "SAMPAI TANGGAL"), React.createElement("input", { type: "date", className: "w-full p-2 border rounded-lg", value: filter.endDate, onChange: e => setFilter({...filter, endDate: e.target.value}) })),
-                        React.createElement("button", { onClick: downloadExcel, className: "w-full md:w-auto bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700" }, "Download .XLSX")
+                        React.createElement("div", { className: "w-full" }, React.createElement("label", { className: "label-text" }, "DARI TANGGAL"), React.createElement("input", { type: "date", className: "input-field", value: filter.startDate, onChange: e => setFilter({...filter, startDate: e.target.value}) })),
+                        React.createElement("div", { className: "w-full" }, React.createElement("label", { className: "label-text" }, "SAMPAI TANGGAL"), React.createElement("input", { type: "date", className: "input-field", value: filter.endDate, onChange: e => setFilter({...filter, endDate: e.target.value}) })),
+                        React.createElement("button", { onClick: downloadExcel, className: "w-full md:w-auto bg-emerald-600 text-white font-bold py-2.5 px-6 rounded-lg hover:bg-emerald-700 shadow-sm shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2" }, 
+                            React.createElement(Download, {size: 18}), "Download Excel"
+                        )
                     ),
-                    React.createElement("div", { className: "overflow-x-auto border rounded-lg" },
+                    React.createElement("div", { className: "overflow-x-auto border border-slate-200 rounded-lg" },
                         React.createElement("table", { className: "w-full text-xs text-left whitespace-nowrap" },
-                            React.createElement("thead", { className: "bg-slate-100 text-slate-600 uppercase font-bold" },
-                                React.createElement("tr", null, React.createElement("th", { className: "p-3 border-b" }, "Tanggal"), React.createElement("th", { className: "p-3 border-b" }, "Nopol"), React.createElement("th", { className: "p-3 border-b" }, "Driver"), React.createElement("th", { className: "p-3 border-b" }, "Customer"), React.createElement("th", { className: "p-3 border-b" }, "Barang"), React.createElement("th", { className: "p-3 border-b text-right" }, "Qty Kirim"), React.createElement("th", { className: "p-3 border-b text-center" }, "Qty Actual"), React.createElement("th", { className: "p-3 border-b text-center" }, "Ongkos Angkut"), React.createElement("th", { className: "p-3 border-b text-center" }, "Validasi"), React.createElement("th", { className: "p-3 border-b" }, "Status"), React.createElement("th", { className: "p-3 border-b" }, "Ket"))
+                            React.createElement("thead", { className: "bg-slate-50 text-slate-600 uppercase font-bold" },
+                                React.createElement("tr", null, React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Tanggal"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Nopol"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Driver"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Customer"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Barang"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-right" }, "Qty Kirim"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-center bg-amber-50/50" }, "Qty Actual"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-right" }, "Ongkos Angkut"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-center bg-sky-50/50" }, "Validasi"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Status"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Ket"))
                             ),
-                            React.createElement("tbody", null, filteredData.length === 0 ? React.createElement("tr", null, React.createElement("td", { colSpan: 11, className: "p-8 text-center text-slate-400" }, "Tidak ada data.")) : filteredData.map(row => 
-                                React.createElement("tr", { key: row.id, className: "hover:bg-slate-50 border-b" },
-                                    React.createElement("td", { className: "p-3" }, row.date),
-                                    React.createElement("td", { className: "p-3 font-bold" }, row.nopol),
-                                    React.createElement("td", { className: "p-3" }, row.driver),
-                                    React.createElement("td", { className: "p-3" }, row.customerName),
-                                    React.createElement("td", { className: "p-3" }, row.itemName),
-                                    React.createElement("td", { className: "p-3 text-right font-bold" }, `${row.qty} ${row.uom}`),
-                                    React.createElement("td", { className: "p-2 bg-yellow-50" }, React.createElement("input", { type: "number", className: "w-16 p-1 border rounded text-right", placeholder: row.qtyActual || "0", value: editValues[row.id] !== undefined ? editValues[row.id] : (row.qtyActual || ''), onChange: (e) => setEditValues({...editValues, [row.id]: e.target.value}) }), editValues[row.id] !== undefined && React.createElement("button", { onClick: () => handleSaveActual(row.id), className: "ml-1" }, "💾")),
-                                    React.createElement("td", { className: "p-3 text-right" }, row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(row.priceOA) : '-'),
-                                    React.createElement("td", { className: "p-2 bg-blue-50 text-center" }, React.createElement("select", { className: "p-1 border rounded", value: editStatusValues[row.id] !== undefined ? editStatusValues[row.id] : (row.validationStatus || ''), onChange: (e) => setEditStatusValues({...editStatusValues, [row.id]: e.target.value}) }, React.createElement("option", { value: "" }, "-"), React.createElement("option", { value: "Acc" }, "Acc"), React.createElement("option", { value: "Reject" }, "Reject")), editStatusValues[row.id] !== undefined && React.createElement("button", { onClick: () => handleSaveStatus(row.id), className: "ml-1" }, "💾")),
-                                    React.createElement("td", { className: "p-3" }, row.status === 'COMPLETED' ? 'Selesai' : 'Jalan'),
-                                    React.createElement("td", { className: "p-3 italic" }, row.notes || '-')
+                            React.createElement("tbody", null, filteredData.length === 0 ? React.createElement("tr", null, React.createElement("td", { colSpan: 11, className: "p-8 text-center text-slate-400 font-medium" }, "Tidak ada data pada periode ini.")) : filteredData.map(row => 
+                                React.createElement("tr", { key: row.id, className: "hover:bg-slate-50/80 border-b border-slate-100" },
+                                    React.createElement("td", { className: "p-4" }, row.date),
+                                    React.createElement("td", { className: "p-4 font-bold text-slate-700" }, row.nopol),
+                                    React.createElement("td", { className: "p-4" }, row.driver),
+                                    React.createElement("td", { className: "p-4" }, row.customerName),
+                                    React.createElement("td", { className: "p-4" }, row.itemName),
+                                    React.createElement("td", { className: "p-4 text-right font-bold" }, `${row.qty} ${row.uom}`),
+                                    React.createElement("td", { className: "p-3 bg-amber-50/30 text-center" }, 
+                                        React.createElement("div", { className: "flex items-center justify-center gap-1" },
+                                            React.createElement("input", { type: "number", className: "w-16 p-1.5 border border-amber-200 rounded text-right text-xs bg-white focus:ring-1 focus:ring-amber-400 outline-none", placeholder: row.qtyActual || "0", value: editValues[row.id] !== undefined ? editValues[row.id] : (row.qtyActual || ''), onChange: (e) => setEditValues({...editValues, [row.id]: e.target.value}) }), 
+                                            editValues[row.id] !== undefined && React.createElement("button", { onClick: () => handleSaveActual(row.id), className: "p-1.5 bg-amber-500 text-white rounded hover:bg-amber-600" }, React.createElement(Save, {size:12}))
+                                        )
+                                    ),
+                                    React.createElement("td", { className: "p-4 text-right font-mono text-slate-600" }, row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(row.priceOA) : '-'),
+                                    React.createElement("td", { className: "p-3 bg-sky-50/30 text-center" }, 
+                                        React.createElement("div", { className: "flex items-center justify-center gap-1" },
+                                            React.createElement("select", { className: `p-1.5 border rounded text-xs outline-none cursor-pointer ${ (editStatusValues[row.id] || row.validationStatus) === 'Reject' ? 'text-red-600 font-bold border-red-200 bg-red-50' : (editStatusValues[row.id] || row.validationStatus) === 'Acc' ? 'text-emerald-600 font-bold border-emerald-200 bg-emerald-50' : 'text-slate-500 border-slate-200' }`, value: editStatusValues[row.id] !== undefined ? editStatusValues[row.id] : (row.validationStatus || ''), onChange: (e) => setEditStatusValues({...editStatusValues, [row.id]: e.target.value}) }, React.createElement("option", { value: "" }, "-"), React.createElement("option", { value: "Acc" }, "Acc"), React.createElement("option", { value: "Reject" }, "Reject")), 
+                                            editStatusValues[row.id] !== undefined && React.createElement("button", { onClick: () => handleSaveStatus(row.id), className: "p-1.5 bg-sky-500 text-white rounded hover:bg-sky-600" }, React.createElement(Save, {size:12}))
+                                        )
+                                    ),
+                                    React.createElement("td", { className: "p-4" }, 
+                                        React.createElement("span", { className: `px-2 py-1 rounded-full text-[10px] font-bold ${row.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}` }, 
+                                            row.status === 'COMPLETED' ? 'Selesai' : 'Jalan'
+                                        )
+                                    ),
+                                    React.createElement("td", { className: "p-4 italic text-slate-400" }, row.notes || '-')
                                 )
                             ))
                         )
@@ -1422,51 +1459,99 @@
             }
 
             return (
-                React.createElement("div", { className: "min-h-screen bg-slate-100 flex flex-col" },
-                    React.createElement("header", { className: "bg-blue-800 text-white shadow-lg sticky top-0 z-20 no-print" },
-                        React.createElement("div", { className: "max-w-6xl mx-auto px-4" },
-                            React.createElement("div", { className: "flex items-center justify-between h-16" },
-                                React.createElement("div", { className: "flex items-center gap-2 shrink-0" },
-                                    React.createElement(TrendingUp, { size: 24 }),
-                                    React.createElement("h1", { className: "text-lg font-bold hidden sm:block" }, "My Trading"),
-                                    React.createElement("h1", { className: "text-lg font-bold sm:hidden" }, "MT"),
-                                    userRole !== 'admin' && React.createElement("span", { className: "bg-orange-500 text-xs px-2 py-1 rounded ml-2 uppercase" }, userRole)
+                React.createElement("div", { className: "min-h-screen bg-slate-100 flex flex-col md:flex-row" },
+                    // SIDEBAR (Visible on Desktop)
+                    React.createElement("aside", { className: "hidden md:flex w-64 bg-sky-50 border-r border-sky-100 text-slate-700 flex-col h-screen sticky top-0 no-print" },
+                        // Logo
+                        React.createElement("div", { className: "h-16 flex items-center px-6 border-b border-sky-200 bg-sky-100/50" },
+                             React.createElement(TrendingUp, { className: "text-sky-600 mr-3", size: 24 }),
+                             React.createElement("div", null,
+                                React.createElement("h1", { className: "font-bold text-lg tracking-wider text-sky-800" }, "MY TRADING"),
+                                React.createElement("p", { className: "text-[10px] text-sky-600" }, "Logistics System")
+                             )
+                        ),
+                        
+                        // Profile
+                         React.createElement("div", { className: "p-6 border-b border-sky-200" },
+                            React.createElement("div", { className: "flex items-center gap-3" },
+                                React.createElement("div", { className: "w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center text-sm font-bold text-white shadow-sm" }, 
+                                     userRole ? userRole.substring(0,2).toUpperCase() : 'GS'
                                 ),
-                                
-                                React.createElement("div", { className: "flex-1 flex justify-start md:justify-center px-4 overflow-x-auto hide-scrollbar" },
-                                    React.createElement("div", { className: "flex items-center gap-2 sm:gap-4" },
-                                        menuItems.map(item => (
-                                            React.createElement("button", { 
-                                                key: item.v, 
-                                                onClick: () => setView(item.v),
-                                                className: `flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all whitespace-nowrap text-sm ${view === item.v ? 'bg-blue-700 text-white shadow-inner' : 'text-blue-200 hover:text-white hover:bg-blue-700/50'}`
-                                            }, 
-                                                React.createElement(item.i, { size: 18 }),
-                                                React.createElement("span", { className: "text-xs font-bold uppercase" }, item.l)
-                                            )
-                                        ))
-                                    )
-                                ),
-
-                                React.createElement("div", { className: "flex items-center gap-2" },
-                                    // Tombol Setting hanya untuk Admin
-                                    userRole === 'admin' && React.createElement("button", { onClick: () => setView('settings'), className: `p-2 rounded-full transition-colors ${view === 'settings' ? 'bg-blue-700' : 'hover:bg-blue-700'}` }, 
-                                        React.createElement(Settings, { size: 20 })
-                                    ),
-                                    // Tombol Logout
-                                    React.createElement("button", { 
-                                        onClick: () => { setUserRole(null); },
-                                        className: "p-2 rounded-full hover:bg-red-600 transition-colors text-red-200 hover:text-white",
-                                        title: "Keluar"
-                                    }, 
-                                        React.createElement(LogOut, { size: 20 })
+                                React.createElement("div", null,
+                                    React.createElement("p", { className: "font-bold text-sm capitalize text-slate-800" }, userRole || 'Guest'),
+                                    React.createElement("div", { className: "flex items-center gap-1.5" },
+                                        React.createElement("div", { className: "w-2 h-2 rounded-full bg-emerald-500" }),
+                                        React.createElement("p", { className: "text-xs text-slate-500" }, "Online")
                                     )
                                 )
                             )
+                         ),
+
+                        // Menu
+                        React.createElement("nav", { className: "flex-1 overflow-y-auto py-6 px-3 space-y-1" },
+                            menuItems.map(item => (
+                                 React.createElement("button", {
+                                    key: item.v,
+                                    onClick: () => setView(item.v),
+                                    className: `w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
+                                        view === item.v 
+                                        ? 'bg-white text-sky-600 shadow-sm ring-1 ring-sky-100' 
+                                        : 'text-slate-600 hover:bg-white/60 hover:text-sky-700'
+                                    }`
+                                 },
+                                    React.createElement(item.i, { size: 20 }),
+                                    React.createElement("span", null, item.l)
+                                 )
+                            ))
+                        ),
+
+                        // Bottom Actions
+                        React.createElement("div", { className: "p-4 border-t border-sky-200 space-y-2" },
+                             userRole === 'admin' && React.createElement("button", {
+                                onClick: () => setView('settings'),
+                                className: `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${view === 'settings' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-sky-700 hover:bg-white/60'}`
+                             },
+                                React.createElement(Settings, { size: 18 }),
+                                "Pengaturan"
+                             ),
+                             React.createElement("button", {
+                                onClick: () => setUserRole(null),
+                                className: "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors"
+                             },
+                                React.createElement(LogOut, { size: 18 }),
+                                "Keluar"
+                             )
                         )
                     ),
 
-                    React.createElement("main", { className: "max-w-4xl mx-auto p-2 md:p-4 md:pt-8 flex-1 w-full" },
+                    // MOBILE HEADER (Visible on Mobile)
+                    React.createElement("header", { className: "md:hidden bg-sky-50 border-b border-sky-200 text-slate-800 p-4 flex justify-between items-center sticky top-0 z-20 no-print" },
+                         React.createElement("div", { className: "flex items-center gap-2" },
+                            React.createElement(TrendingUp, { size: 24, className: "text-sky-600" }),
+                            React.createElement("h1", { className: "font-bold text-sky-800" }, "My Trading")
+                         ),
+                         React.createElement("button", { onClick: () => setUserRole(null), className: "text-slate-500" }, React.createElement(LogOut, { size: 20 }))
+                    ),
+                    
+                    // MOBILE NAV (Visible on Mobile)
+                    React.createElement("div", { className: "md:hidden bg-white border-b border-slate-100 overflow-x-auto flex items-center gap-2 p-2 no-print shadow-sm" },
+                         menuItems.map(item => (
+                            React.createElement("button", {
+                                key: item.v,
+                                onClick: () => setView(item.v),
+                                className: `flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold border transition-colors ${
+                                    view === item.v ? 'bg-sky-50 text-sky-700 border-sky-200' : 'text-slate-500 border-transparent hover:bg-slate-50'
+                                }`
+                            },
+                                React.createElement(item.i, { size: 14 }),
+                                item.l
+                            )
+                         )),
+                         userRole === 'admin' && React.createElement("button", { onClick: () => setView('settings'), className: "flex-shrink-0 p-2 text-slate-400 hover:text-slate-600" }, React.createElement(Settings, { size: 16 }))
+                    ),
+
+                    // MAIN CONTENT
+                    React.createElement("main", { className: "flex-1 overflow-y-auto h-screen p-4 md:p-8 bg-slate-50/50" },
                         // Conditional Rendering based on Roles & Views
                         (userRole === 'admin' || userRole === 'timbang') && view === 'register' && React.createElement(RegisterTruckForm, { user, trucks }),
                         
@@ -1483,10 +1568,6 @@
                         
                         userRole === 'admin' && view === 'instruction' && React.createElement(InstructionPage),
                         userRole === 'admin' && view === 'settings' && React.createElement(SettingsPage, { user })
-                    ),
-
-                    React.createElement("footer", { className: "bg-white border-t p-4 text-center text-slate-400 text-xs no-print mt-auto" },
-                        React.createElement("p", null, `© ${new Date().getFullYear()} My Trading System. All rights reserved.`)
                     )
                 )
             );
