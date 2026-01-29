@@ -1004,7 +1004,7 @@
                 return () => unsub();
             }, [user]);
             
-            // LOGIC BARU: TOMBOL SELESAI
+            // LOGIC BARU: TOMBOL SELESAI DENGAN DEBUG WA
             const handleFinish = async (t) => { 
                 const pass = prompt("Masukkan Password Admin untuk Menyelesaikan Transaksi:");
                 if(pass !== 'admin123') return alert("Password Salah!");
@@ -1015,11 +1015,13 @@
                     if (!auth.currentUser) await signInAnonymously(auth);
 
                     // --- WA NOTIFICATION START ---
+                    let waStatusMsg = "";
                     try {
                         const settingsSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
                         if (settingsSnap.exists()) {
                             const settings = settingsSnap.data();
                             const wa = settings.waConfig;
+                            
                             if (wa && wa.token && wa.targetGroups) {
                                 // Construct Message
                                 const itemsList = t.items || [];
@@ -1032,10 +1034,10 @@
                                     `📅 Tgl : ${new Date().toLocaleString('id-ID')} WIB\n` +
                                     `🔄 Tipe : Cetak SPJ\n` +
                                     `👤 User : ${userData ? userData.username : 'Admin'}\n\n` +
-                                    `📄 No. POL : ${t.nopol || t.no_truk}\n` +
-                                    `      Driver : ${t.driver}\n` +
+                                    `📄 No. POL : ${t.nopol || t.no_truk || '-'}\n` +
+                                    `      Driver : ${t.driver || '-'}\n` +
                                     `      Tlp : ${t.noHp || '-'}\n` +
-                                    `📍 Tujuan : ${t.customerName}\n\n` +
+                                    `📍 Tujuan : ${t.customerName || '-'}\n\n` +
                                     `Rincian Produk\n` +
                                     `--------------------------------\n` +
                                     `${rincianProduk}`;
@@ -1044,19 +1046,38 @@
                                 formData.append('target', wa.targetGroups);
                                 formData.append('message', message);
 
-                                await fetch("https://api.fonnte.com/send", {
+                                // Debug Log
+                                console.log("Sending WA...", { target: wa.targetGroups, msg: message });
+
+                                const response = await fetch("https://api.fonnte.com/send", {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': wa.token
                                     },
                                     body: formData
                                 });
-                                console.log("WA Notification sent");
+                                
+                                const result = await response.json();
+                                console.log("WA Response:", result);
+                                
+                                if(result.status) {
+                                    waStatusMsg = "Notifikasi WA Terkirim.";
+                                } else {
+                                    waStatusMsg = `Gagal kirim WA: ${result.reason || 'Unknown Error'}`;
+                                    alert(`Gagal kirim WA: ${result.reason || 'Cek Token Fonnte Anda'}`);
+                                }
+                            } else {
+                                waStatusMsg = "Skip WA: Token/Target belum diseting.";
+                                alert("Peringatan: Konfigurasi WhatsApp (Token/Group ID) belum diisi di menu Pengaturan.");
                             }
+                        } else {
+                             waStatusMsg = "Skip WA: Data pengaturan belum ada.";
+                             alert("Peringatan: Belum ada data pengaturan. Silakan simpan pengaturan minimal sekali.");
                         }
                     } catch (waErr) {
                         console.error("WA Send Error:", waErr);
-                        alert("Gagal kirim notif WA, tapi transaksi akan tetap diselesaikan.");
+                        waStatusMsg = "Error kirim WA (Cek Console).";
+                        // Jangan alert error detail agar user tidak bingung, cukup log console
                     }
                     // --- WA NOTIFICATION END ---
                     
@@ -1065,12 +1086,14 @@
 
                     // 2. Hapus Armada dari Database (sesuai permintaan: "terhapus di menu armada")
                     if(t.selectedTruckId) {
-                         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trucks', t.selectedTruckId));
+                         try {
+                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trucks', t.selectedTruckId));
+                         } catch(e) { console.log("Truck ref not found or already deleted"); }
                     }
-                    alert("Transaksi Selesai. Armada dihapus dari daftar.");
+                    alert(`Transaksi Selesai. Armada dihapus dari daftar.\n(${waStatusMsg})`);
                 } catch(e) {
                     console.error(e);
-                    alert("Gagal update status.");
+                    alert("Gagal update status database: " + e.message);
                 }
             };
             
