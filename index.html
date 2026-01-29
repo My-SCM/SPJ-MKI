@@ -545,7 +545,7 @@
         };
 
         // 4. TRANSACTION FORM
-        const TransactionForm = ({ user, trucks }) => {
+        const TransactionForm = ({ user, trucks, userData }) => { // Tambahkan userData di props
             const [masterTransporters, setMasterTransporters] = useState([]);
             const [masterTrucks, setMasterTrucks] = useState([]);
             const [masterCustomers, setMasterCustomers] = useState([]);
@@ -827,7 +827,7 @@
                 }
 
                 try {
-                    // LOGIC BARU: Simpan Transaksi dengan status 'ACTIVE'
+                    // 1. Simpan Transaksi dengan status 'ACTIVE'
                     const dataToSave = { 
                         ...formData, 
                         items: items.filter(i => i.nama), 
@@ -837,16 +837,74 @@
                     };
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), dataToSave);
                     
-                    // LOGIC BARU: Update status Armada jadi 'BUSY'
+                    // 2. Update status Armada jadi 'BUSY'
                     if (formData.selectedTruckId) {
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trucks', formData.selectedTruckId), {
                             status: 'BUSY'
                         });
                     }
 
+                    // 3. KIRIM NOTIFIKASI WA (Dipindahkan ke sini)
+                    let waStatus = "";
+                    try {
+                        const settingsSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
+                        if (settingsSnap.exists()) {
+                            const settings = settingsSnap.data();
+                            const wa = settings.waConfig;
+                            
+                            if (wa && wa.token && wa.targetGroups) {
+                                const token = wa.token.trim();
+                                const target = wa.targetGroups.trim();
+
+                                // Construct Message
+                                const itemsList = items.filter(i => i.nama);
+                                let rincianProduk = "";
+                                itemsList.forEach((item, index) => {
+                                    rincianProduk += `${index + 1}. ${item.nama}\n   📦 ${item.qty_kirim} ${item.uom}\n   📝 Ket: ${item.notes || '-'}\n`;
+                                });
+
+                                // Gunakan userData untuk nama user, fallback ke 'Admin'
+                                const userName = userData ? userData.username : 'Admin';
+
+                                const message = `*LAPORAN TRANSAKSI KIRIMAN*\n` +
+                                    `📅 Tgl : ${new Date().toLocaleString('id-ID')} WIB\n` +
+                                    `🔄 Tipe : Cetak SPJ\n` +
+                                    `👤 User : ${userName}\n\n` +
+                                    `📄 No. POL : ${formData.no_truk || '-'}\n` +
+                                    `      Driver : ${formData.driver || '-'}\n` +
+                                    `      Tlp : ${formData.noHp || '-'}\n` +
+                                    `📍 Tujuan : ${formData.customerName || (formData.tujuan ? formData.tujuan.split('\n')[0] : '-')}\n\n` +
+                                    `Rincian Produk\n` +
+                                    `--------------------------------\n` +
+                                    `${rincianProduk}`;
+
+                                const waFormData = new FormData();
+                                waFormData.append('target', target);
+                                waFormData.append('message', message);
+                                waFormData.append('delay', '2'); 
+
+                                // Kirim tanpa await blocking (background process) agar PDF cepat keluar
+                                fetch("https://api.fonnte.com/send", {
+                                    method: 'POST',
+                                    headers: { 'Authorization': token },
+                                    body: waFormData
+                                })
+                                .then(res => res.json())
+                                .then(res => console.log("WA Sent:", res))
+                                .catch(err => console.error("WA Error:", err));
+                                
+                                waStatus = " & WA Terkirim";
+                            }
+                        }
+                    } catch (waErr) {
+                        console.error("WA Config Error:", waErr);
+                    }
+
+                    // 4. Download PDF
                     const docPDF = createPDFObject({ header: formData, items: items.filter(i => i.nama) });
                     docPDF.save(`SJ_${formData.no_sj || 'Draft'}.pdf`);
-                    setStatusMsg('Data Berhasil Disimpan, Armada BUSY & PDF Didownload!');
+                    
+                    setStatusMsg(`Data Disimpan${waStatus}, Armada BUSY & PDF Didownload!`);
                     setFormData(prev => ({ ...prev, tujuan: '', selectedCustomerId: '', customerName: '', no_so: '', priceOA: 0, selectedTruckId: '', driver: '', no_truk: '', noHp: '', tipe_truk: '' }));
                     setItems([{ itemId: '', code: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }]);
                 } catch (error) {
@@ -1004,95 +1062,15 @@
                 return () => unsub();
             }, [user]);
             
-            // LOGIC BARU: TOMBOL SELESAI DENGAN PERBAIKAN WA
+            // LOGIC BARU: TOMBOL SELESAI (DISEDERHANAKAN KEMBALI)
             const handleFinish = async (t) => { 
                 const pass = prompt("Masukkan Password Admin untuk Menyelesaikan Transaksi:");
                 if(pass !== 'admin123') return alert("Password Salah!");
                 
                 if(!confirm("Yakin selesaikan? Armada akan dihapus dari daftar aktif.")) return;
                 
-                let waStatusMsg = "Menyiapkan data...";
-                
                 try {
                     if (!auth.currentUser) await signInAnonymously(auth);
-
-                    // --- WA NOTIFICATION START ---
-                    try {
-                        const settingsSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
-                        if (settingsSnap.exists()) {
-                            const settings = settingsSnap.data();
-                            const wa = settings.waConfig;
-                            
-                            // Validasi Konfigurasi
-                            if (wa && wa.token && wa.targetGroups) {
-                                const token = wa.token.trim();
-                                const target = wa.targetGroups.trim();
-
-                                // Construct Message
-                                const itemsList = t.items || [];
-                                let rincianProduk = "";
-                                itemsList.forEach((item, index) => {
-                                    rincianProduk += `${index + 1}. ${item.nama}\n   📦 ${item.qty_kirim} ${item.uom}\n   📝 Ket: ${item.notes || '-'}\n`;
-                                });
-
-                                const message = `*LAPORAN TRANSAKSI KIRIMAN*\n` +
-                                    `📅 Tgl : ${new Date().toLocaleString('id-ID')} WIB\n` +
-                                    `🔄 Tipe : Cetak SPJ\n` +
-                                    `👤 User : ${userData ? userData.username : 'Admin'}\n\n` +
-                                    `📄 No. POL : ${t.nopol || t.no_truk || '-'}\n` +
-                                    `      Driver : ${t.driver || '-'}\n` +
-                                    `      Tlp : ${t.noHp || '-'}\n` +
-                                    `📍 Tujuan : ${t.customerName || '-'}\n\n` +
-                                    `Rincian Produk\n` +
-                                    `--------------------------------\n` +
-                                    `${rincianProduk}`;
-
-                                const formData = new FormData();
-                                formData.append('target', target);
-                                formData.append('message', message);
-                                // Tambahkan delay opsi untuk memastikan pesan terproses
-                                formData.append('delay', '2'); 
-
-                                console.log("Sending WA to:", target);
-
-                                const response = await fetch("https://api.fonnte.com/send", {
-                                    method: 'POST',
-                                    headers: {
-                                        'Authorization': token
-                                    },
-                                    body: formData
-                                });
-                                
-                                // Cek status HTTP dulu
-                                if (!response.ok) {
-                                    throw new Error(`HTTP Error: ${response.status}`);
-                                }
-
-                                const result = await response.json();
-                                console.log("WA Response:", result);
-                                
-                                if(result.status) {
-                                    waStatusMsg = "✅ Notifikasi WA Terkirim.";
-                                } else {
-                                    // Fonnte mengembalikan status: false jika gagal
-                                    waStatusMsg = `⚠️ Gagal kirim WA: ${result.reason || 'Token Salah/Koneksi Putus'}`;
-                                    console.error("Fonnte Error:", result);
-                                }
-                            } else {
-                                waStatusMsg = "ℹ️ Skip WA: Token/Target belum diisi di Pengaturan.";
-                            }
-                        } else {
-                             waStatusMsg = "ℹ️ Skip WA: Pengaturan belum disimpan.";
-                        }
-                    } catch (waErr) {
-                        console.error("WA Send Error:", waErr);
-                        waStatusMsg = `❌ Error Koneksi WA: ${waErr.message}`;
-                        // Biasanya kena CORS atau Network Error
-                        if(waErr.message.includes("Failed to fetch")) {
-                             waStatusMsg += " (Cek koneksi internet / AdBlocker)";
-                        }
-                    }
-                    // --- WA NOTIFICATION END ---
                     
                     // 1. Update Status Transaksi -> COMPLETED
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', t.id), { status: 'COMPLETED' }); 
@@ -1103,10 +1081,7 @@
                             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trucks', t.selectedTruckId));
                          } catch(e) { console.log("Truck ref not found or already deleted"); }
                     }
-                    
-                    // Tampilkan Alert Akhir dengan Status WA
-                    alert(`Transaksi Selesai & Armada Dihapus.\n\nStatus WA: ${waStatusMsg}`);
-
+                    alert("Transaksi Selesai. Armada dihapus dari daftar.");
                 } catch(e) {
                     console.error(e);
                     alert("Gagal update status database: " + e.message);
@@ -2286,11 +2261,11 @@
                         // Conditional Rendering based on Roles & Views
                         (userRole === 'admin' || userRole === 'timbang') && view === 'register' && React.createElement(RegisterTruckForm, { user, trucks }),
                         
-                        userRole === 'admin' && view === 'customers' && React.createElement(MasterCustomerForm, { user }),
-                        userRole === 'admin' && view === 'transporters' && React.createElement(MasterTransporterForm, { user }), 
+                        (userRole === 'admin' || userRole === 'transporters') && view === 'transporters' && React.createElement(MasterTransporterForm, { user }), 
                         userRole === 'admin' && view === 'items' && React.createElement(MasterItemForm, { user }),
                         
-                        (userRole === 'admin' || userRole === 'user') && view === 'transaction' && React.createElement(TransactionForm, { user, trucks }),
+                        // Pass userData to TransactionForm
+                        (userRole === 'admin' || userRole === 'user') && view === 'transaction' && React.createElement(TransactionForm, { user, trucks, userData }),
                         (userRole === 'admin' || userRole === 'user') && view === 'tracking' && React.createElement(LiveTrackingPage, { user }), // Render Live Tracking
                         
                         userRole === 'admin' && view === 'history' && React.createElement(TransactionHistory, { user, userData }),
