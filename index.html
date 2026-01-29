@@ -391,34 +391,7 @@
             );
         };
 
-        // 3. INSTRUCTION PAGE
-        const InstructionPage = () => {
-            return React.createElement("div", { className: "space-y-6 pb-20 no-print" },
-                React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
-                    React.createElement("h2", { className: "text-xl font-bold mb-2 flex items-center gap-2 text-slate-800" },
-                        React.createElement(Info, { className: "text-sky-600" }), " Instruksi Kerja (SOP)"
-                    ),
-                    React.createElement("p", { className: "text-sm text-slate-600" },
-                        "Panduan standar operasional untuk penggunaan aplikasi MyTrading."
-                    )
-                ),
-                React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
-                    React.createElement("h3", { className: "font-bold text-md mb-4 text-slate-800 flex items-center gap-2" },
-                        React.createElement(Package, { className: "text-sky-500", size: 20 }), " 1. Master Produk / Barang"
-                    ),
-                    React.createElement("img", {
-                        src: "https://lh3.googleusercontent.com/d/1wIkcD0P8Cp353LYf72gMzm3tTyDP0AGa",
-                        className: "w-full rounded-xl border border-slate-200 shadow-sm mb-4"
-                    }),
-                    React.createElement("ul", { className: "list-disc list-inside text-sm text-slate-600 space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100" },
-                        React.createElement("li", null, "Gunakan menu ini untuk mendaftarkan barang baru."),
-                        React.createElement("li", null, "Input Nama Barang, Satuan, dan Keterangan.")
-                    )
-                )
-            );
-        };
-
-        // 4. RECAP PAGE
+        // 3. RECAP PAGE (Fixed: Changed 'date' to 'tanggal')
         const RecapPage = ({ user }) => {
             const [transactions, setTransactions] = useState([]);
             const [filter, setFilter] = useState({ 
@@ -433,16 +406,16 @@
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'));
                 const unsub = onSnapshot(q, s => {
                     const data = s.docs.map(d => ({id: d.id, ...d.data()}));
-                    setTransactions(data.sort((a,b) => new Date(b.date) - new Date(a.date)));
+                    // Perbaikan: Gunakan 'tanggal' untuk sorting karena data disimpan dengan key 'tanggal'
+                    setTransactions(data.sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal)));
                 });
                 return () => unsub();
             }, [user]);
 
             const filteredData = transactions.filter(t => {
-               // Gunakan t.tanggal (sesuai field di TransactionForm) bukan t.date
-    const dataDate = t.tanggal; 
-    return dataDate >= filter.startDate && dataDate <= filter.endDate;
-});
+                // Perbaikan: Gunakan 't.tanggal' bukan 't.date'
+                return t.tanggal >= filter.startDate && t.tanggal <= filter.endDate;
+            });
 
             const handleSaveActual = async (id) => {
                 const val = editValues[id];
@@ -483,14 +456,14 @@
             const downloadExcel = () => {
                 if(filteredData.length === 0) return alert("Tidak ada data untuk didownload");
                 const dataForExcel = filteredData.map(row => ({
-                    "Tanggal": row.tanggal,
-                    "No Polisi": row.no_truk (atau row.nopol,
+                    "Tanggal": row.tanggal, // Perbaikan: Gunakan row.tanggal
+                    "No Polisi": row.nopol,
                     "Driver": row.driver,
                     "No HP": row.noHp || '-',
                     "Customer": row.customerName,
                     "Alamat Customer": row.customerAddress || '',
-                    "Barang": rrow.items[0].nama (Data berupa Array),
-                    "Qty Kirim": row.items[0].qty_kirim, 
+                    "Barang": row.itemName,
+                    "Qty Kirim": Number(row.qty), 
                     "Qty Actual": row.qtyActual ? Number(row.qtyActual) : '-',
                     "Ongkos Angkut": row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(row.priceOA) : '-',
                     "Validasi": row.validationStatus || 'Pending',
@@ -523,7 +496,7 @@
                             ),
                             React.createElement("tbody", null, filteredData.length === 0 ? React.createElement("tr", null, React.createElement("td", { colSpan: 11, className: "p-8 text-center text-slate-400 font-medium" }, "Tidak ada data pada periode ini.")) : filteredData.map(row => 
                                 React.createElement("tr", { key: row.id, className: "hover:bg-slate-50/80 border-b border-slate-100" },
-                                    React.createElement("td", { className: "p-4" }, row.date),
+                                    React.createElement("td", { className: "p-4" }, row.tanggal), // Perbaikan: row.tanggal
                                     React.createElement("td", { className: "p-4 font-bold text-slate-700" }, row.nopol),
                                     React.createElement("td", { className: "p-4" }, row.driver),
                                     React.createElement("td", { className: "p-4" }, row.customerName),
@@ -556,7 +529,7 @@
             );
         };
 
-        // 5. TRANSACTION FORM
+        // 4. TRANSACTION FORM
         const TransactionForm = ({ user, trucks }) => {
             const [masterTransporters, setMasterTransporters] = useState([]);
             const [masterTrucks, setMasterTrucks] = useState([]);
@@ -607,9 +580,9 @@
                 },
                 tujuan: { x: 20, y: 32, maxWidth: 80, lineHeight: 5 },
                 table: {
-                    startY: 68,      
-                    rowHeight: 6,    
-                    cols: {          
+                    startY: 68,       
+                    rowHeight: 6,     
+                    cols: {           
                         kode: 12, nama: 42, uom: 95, qty_pesan: 110, qty_kirim: 130, berat: 150, total: 175
                     }
                 },
@@ -1291,7 +1264,7 @@
                 noHp: '', 
                 type: 'CDD',
                 ticketNumber: '', 
-                netWeight: ''     
+                netWeight: ''      
             });
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
@@ -1359,7 +1332,7 @@
                         noHp: editData.noHp,
                         type: editData.type,
                         ticketNumber: editData.ticketNumber || '', 
-                        netWeight: editData.netWeight || ''      
+                        netWeight: editData.netWeight || ''       
                     });
                     setEditingId(null);
                     alert("Perubahan berhasil disimpan!");
@@ -1436,6 +1409,8 @@
                                 React.createElement("tr", null,
                                     React.createElement("th", { className: "p-3" }, "No Polisi"),
                                     React.createElement("th", { className: "p-3" }, "Driver"),
+                                    React.createElement("th", { className: "p-3" }, "No Tiket"),
+                                    React.createElement("th", { className: "p-3" }, "Qty Net"),
                                     React.createElement("th", { className: "p-3" }, "Status"),
                                     React.createElement("th", { className: "p-3" }, "Tipe"),
                                     React.createElement("th", { className: "p-3 text-right" }, "Aksi")
@@ -1453,6 +1428,12 @@
                                         React.createElement("td", { className: "p-2" }, 
                                             React.createElement("input", { className: "w-full p-1 border rounded", value: editData.driver, onChange: e => setEditData({...editData, driver: e.target.value}) })
                                         ),
+                                        React.createElement("td", { className: "p-2" }, 
+                                            React.createElement("input", { className: "w-full p-1 border rounded", value: editData.ticketNumber, onChange: e => setEditData({...editData, ticketNumber: e.target.value}) })
+                                        ),
+                                        React.createElement("td", { className: "p-2" }, 
+                                            React.createElement("input", { type: "number", className: "w-full p-1 border rounded", value: editData.netWeight, onChange: e => setEditData({...editData, netWeight: e.target.value}) })
+                                        ),
                                         React.createElement("td", { className: "p-2" }, "-"),
                                         React.createElement("td", { className: "p-2" }, 
                                             React.createElement("select", { className: "w-full p-1 border rounded", value: editData.type, onChange: e => setEditData({...editData, type: e.target.value}) },
@@ -1467,6 +1448,8 @@
                                     React.createElement("tr", { key: t.id, className: "border-b hover:bg-slate-50" },
                                         React.createElement("td", { className: "p-3 font-bold" }, t.nopol),
                                         React.createElement("td", { className: "p-3" }, t.driver),
+                                        React.createElement("td", { className: "p-3 text-slate-500 font-mono text-xs" }, t.ticketNumber || '-'),
+                                        React.createElement("td", { className: "p-3 font-mono" }, t.netWeight ? `${t.netWeight} Kg` : '-'),
                                         React.createElement("td", { className: "p-3" }, 
                                              t.status === 'BUSY' ? 
                                              React.createElement("span", { className: "bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold" }, "BUSY") :
@@ -1509,8 +1492,8 @@
                 { id: 'register', label: 'Armada' },
                 { id: 'customers', label: 'Customer' },
                 { id: 'transporters', label: 'Transporter' },
-                { id: 'items', label: 'Barang' },
-                { id: 'instruction', label: 'Panduan' }
+                { id: 'items', label: 'Barang' }
+                // { id: 'instruction', label: 'Panduan' } // DIHAPUS
             ];
 
             useEffect(() => {
@@ -1915,6 +1898,36 @@
             );
         };
 
+        // KOMPONEN PERINGATAN MOBILE
+        const MobileWarning = () => {
+            const [visible, setVisible] = useState(false);
+
+            useEffect(() => {
+                // Cek lebar layar saat load (md breakpoint tailwind adalah 768px)
+                if (window.innerWidth < 768) {
+                    setVisible(true);
+                }
+            }, []);
+
+            if (!visible) return null;
+
+            return React.createElement("div", { className: "fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/90 p-6 backdrop-blur-sm no-print transition-all duration-300" },
+                React.createElement("div", { className: "bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-2xl border border-slate-200 transform scale-100 transition-transform" },
+                    React.createElement("div", { className: "w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-amber-50" },
+                        React.createElement(AlertTriangle, { className: "text-amber-600", size: 28 })
+                    ),
+                    React.createElement("h3", { className: "text-lg font-bold text-slate-800 mb-2" }, "Optimized for PC"),
+                    React.createElement("p", { className: "text-sm text-slate-500 mb-6 leading-relaxed" }, 
+                        "Aplikasi ini didesain khusus untuk Laptop/PC. Tampilan di HP mungkin terbatas dan hanya disarankan untuk akses menu Armada."
+                    ),
+                    React.createElement("button", { 
+                        onClick: () => setVisible(false),
+                        className: "w-full bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-700 active:scale-95 transition-all text-sm shadow-lg shadow-slate-200"
+                    }, "Mengerti, Lanjutkan")
+                )
+            );
+        };
+
         const App = () => {
             const [user, setUser] = useState(null);
             // Change userRole state to store full user data
@@ -2007,8 +2020,8 @@
                 {v: 'register', i: Truck, l: 'Armada'},
                 {v: 'customers', i: Users, l: 'Customer'},
                 {v: 'transporters', i: Briefcase, l: 'Transporter'}, 
-                {v: 'items', i: Package, l: 'Barang'},
-                {v: 'instruction', i: Info, l: 'Panduan'}
+                {v: 'items', i: Package, l: 'Barang'}
+                // {v: 'instruction', i: Info, l: 'Panduan'} // DIHAPUS
             ];
 
             // Filter Menu Logic
@@ -2032,19 +2045,29 @@
 
             return (
                 React.createElement("div", { className: "min-h-screen bg-slate-100 flex flex-col md:flex-row" },
-                    // SIDEBAR (Visible on Desktop)
-                    React.createElement("aside", { className: "hidden md:flex w-64 bg-sky-50 border-r border-sky-100 text-slate-700 flex-col h-screen sticky top-0 no-print" },
+                    // Tampilkan Warning jika Mobile
+                    React.createElement(MobileWarning),
+
+                    // SIDEBAR (Now visible on all devices, adjusted for responsive behavior)
+                    React.createElement("aside", { className: "flex flex-col w-full md:w-64 bg-sky-50 border-b md:border-b-0 md:border-r border-sky-100 text-slate-700 md:h-screen md:sticky top-0 no-print z-10 shrink-0" },
                         // Logo
-                        React.createElement("div", { className: "h-16 flex items-center px-6 border-b border-sky-200 bg-sky-100/50" },
+                        React.createElement("div", { className: "h-16 flex items-center px-6 border-b border-sky-200 bg-sky-100/50 justify-between md:justify-start" },
                              // SIDEBAR LOGO: Background Merah, Icon Hijau Bold
-                             React.createElement("div", { className: "w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3" },
-                                React.createElement(TrendingUp, { className: "text-green-600", size: 20, strokeWidth: 3 })
+                             React.createElement("div", { className: "flex items-center" },
+                                 React.createElement("div", { className: "w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3" },
+                                    React.createElement(TrendingUp, { className: "text-green-600", size: 20, strokeWidth: 3 })
+                                 ),
+                                 React.createElement("div", null,
+                                    // SIDEBAR TEXT: Gold Pekat
+                                    React.createElement("h1", { className: "font-bold text-lg tracking-wider text-[#B8860B]" }, "MyTrading"),
+                                    React.createElement("p", { className: "text-[10px] text-sky-600" }, "Logistics System")
+                                 )
                              ),
-                             React.createElement("div", null,
-                                // SIDEBAR TEXT: Gold Pekat
-                                React.createElement("h1", { className: "font-bold text-lg tracking-wider text-[#B8860B]" }, "MyTrading"),
-                                React.createElement("p", { className: "text-[10px] text-sky-600" }, "Logistics System")
-                             )
+                             // Mobile Logout Button (Since Mobile Header is removed)
+                             React.createElement("button", {
+                                onClick: () => setUserData(null),
+                                className: "md:hidden text-red-500 p-2"
+                             }, React.createElement(LogOut, { size: 20 }))
                         ),
                         
                         // Profile
@@ -2056,7 +2079,7 @@
                                 React.createElement("div", null,
                                     React.createElement("p", { className: "font-bold text-sm capitalize text-slate-800" }, userRole || 'Guest'),
                                     React.createElement("div", { className: "flex items-center gap-1.5" },
-                                        React.createElement("div", { className: "w-2 h-2 rounded-full bg-emerald-500" }),
+                                        React.createElement("div", { className: "w-2 h-2 rounded-full bg-emerald-500" },),
                                         React.createElement("p", { className: "text-xs text-slate-500" }, "Online")
                                     )
                                 )
@@ -2082,7 +2105,7 @@
                         ),
 
                         // Bottom Actions
-                        React.createElement("div", { className: "p-4 border-t border-sky-200 space-y-2" },
+                        React.createElement("div", { className: "p-4 border-t border-sky-200 space-y-2 hidden md:block" },
                              userRole === 'admin' && React.createElement("button", {
                                 onClick: () => setView('settings'),
                                 className: `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${view === 'settings' ? 'bg-sky-100 text-sky-800' : 'text-slate-500 hover:text-sky-700 hover:bg-white/60'}`
@@ -2098,36 +2121,6 @@
                                 "Keluar"
                              )
                         )
-                    ),
-
-                    // MOBILE HEADER (Visible on Mobile)
-                    React.createElement("header", { className: "md:hidden bg-sky-50 border-b border-sky-200 text-slate-800 p-4 flex justify-between items-center sticky top-0 z-20 no-print" },
-                          React.createElement("div", { className: "flex items-center gap-2" },
-                            // MOBILE LOGO
-                            React.createElement("div", { className: "w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center" },
-                                React.createElement(TrendingUp, { size: 20, className: "text-green-600", strokeWidth: 3 })
-                            ),
-                            // MOBILE TEXT
-                            React.createElement("h1", { className: "font-bold text-[#B8860B]" }, "MyTrading")
-                          ),
-                          React.createElement("button", { onClick: () => setUserData(null), className: "text-slate-500" }, React.createElement(LogOut, { size: 20 }))
-                    ),
-                    
-                    // MOBILE NAV (Visible on Mobile)
-                    React.createElement("div", { className: "md:hidden bg-white border-b border-slate-100 overflow-x-auto flex items-center gap-2 p-2 no-print shadow-sm" },
-                          menuItems.map(item => (
-                            React.createElement("button", {
-                                key: item.v,
-                                onClick: () => setView(item.v),
-                                className: `flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold border transition-colors ${
-                                    view === item.v ? 'bg-sky-50 text-sky-700 border-sky-200' : 'text-slate-500 border-transparent hover:bg-slate-50'
-                                }`
-                            },
-                                React.createElement(item.i, { size: 14 }),
-                                item.l
-                            )
-                          )),
-                          userRole === 'admin' && React.createElement("button", { onClick: () => setView('settings'), className: "flex-shrink-0 p-2 text-slate-400 hover:text-slate-600" }, React.createElement(Settings, { size: 16 }))
                     ),
 
                     // MAIN CONTENT
@@ -2146,7 +2139,6 @@
                         // Allow User to see Recap
                         (userRole === 'admin' || userRole === 'user') && view === 'recap' && React.createElement(RecapPage, { user }),
                         
-                        userRole === 'admin' && view === 'instruction' && React.createElement(InstructionPage),
                         userRole === 'admin' && view === 'settings' && React.createElement(SettingsPage, { user })
                     )
                 )
