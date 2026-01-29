@@ -455,22 +455,30 @@
 
             const downloadExcel = () => {
                 if(filteredData.length === 0) return alert("Tidak ada data untuk didownload");
-                const dataForExcel = filteredData.map(row => ({
-                    "Tanggal": row.tanggal, // Perbaikan: Gunakan row.tanggal
-                    "No Polisi": row.nopol,
-                    "Driver": row.driver,
-                    "No HP": row.noHp || '-',
-                    "Customer": row.customerName,
-                    "Alamat Customer": row.customerAddress || '',
-                    "Barang": row.itemName,
-                    "Qty Kirim": Number(row.qty), 
-                    "Qty Actual": row.qtyActual ? Number(row.qtyActual) : '-',
-                    "Ongkos Angkut": row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(row.priceOA) : '-',
-                    "Validasi": row.validationStatus || 'Pending',
-                    "Satuan": row.uom,
-                    "Status Jalan": row.status === 'COMPLETED' ? 'Selesai' : 'Dalam Perjalanan',
-                    "Keterangan": row.notes || ''
-                }));
+                const dataForExcel = filteredData.map(row => {
+                    // Helper untuk Barang dan Qty
+                    const itemsList = row.items || [];
+                    const barangStr = itemsList.length > 0 ? itemsList.map(i => i.nama).join(', ') : (row.itemName || '-');
+                    const qtyStr = itemsList.length > 0 ? itemsList.map(i => `${i.qty_kirim} ${i.uom}`).join(', ') : `${row.qty || '-'} ${row.uom || ''}`;
+                    const nopolStr = row.no_truk || row.nopol || '-';
+                    const customerStr = row.customerName || (row.tujuan ? row.tujuan.split('\n')[0] : '-');
+
+                    return {
+                        "Tanggal": row.tanggal,
+                        "No Polisi": nopolStr,
+                        "Driver": row.driver,
+                        "No HP": row.noHp || '-',
+                        "Customer": customerStr,
+                        "Alamat Customer": row.tujuan || '',
+                        "Barang": barangStr,
+                        "Qty Kirim": qtyStr,
+                        "Qty Actual": row.qtyActual ? Number(row.qtyActual) : '-',
+                        "Ongkos Angkut": row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(row.priceOA) : '-',
+                        "Validasi": row.validationStatus || 'Pending',
+                        "Status Jalan": row.status === 'COMPLETED' ? 'Selesai' : 'Dalam Perjalanan',
+                        "Keterangan": row.notes || ''
+                    };
+                });
                 const ws = window.XLSX.utils.json_to_sheet(dataForExcel);
                 const wb = window.XLSX.utils.book_new();
                 window.XLSX.utils.book_append_sheet(wb, ws, "Rekap Transaksi");
@@ -494,14 +502,21 @@
                             React.createElement("thead", { className: "bg-slate-50 text-slate-600 uppercase font-bold" },
                                 React.createElement("tr", null, React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Tanggal"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Nopol"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Driver"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Customer"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Barang"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-right" }, "Qty Kirim"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-center bg-amber-50/50" }, "Qty Actual"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-right" }, "Ongkos Angkut"), React.createElement("th", { className: "p-4 border-b border-slate-200 text-center bg-sky-50/50" }, "Validasi"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Status"), React.createElement("th", { className: "p-4 border-b border-slate-200" }, "Ket"))
                             ),
-                            React.createElement("tbody", null, filteredData.length === 0 ? React.createElement("tr", null, React.createElement("td", { colSpan: 11, className: "p-8 text-center text-slate-400 font-medium" }, "Tidak ada data pada periode ini.")) : filteredData.map(row => 
-                                React.createElement("tr", { key: row.id, className: "hover:bg-slate-50/80 border-b border-slate-100" },
-                                    React.createElement("td", { className: "p-4" }, row.tanggal), // Perbaikan: row.tanggal
-                                    React.createElement("td", { className: "p-4 font-bold text-slate-700" }, row.nopol),
+                            React.createElement("tbody", null, filteredData.length === 0 ? React.createElement("tr", null, React.createElement("td", { colSpan: 11, className: "p-8 text-center text-slate-400 font-medium" }, "Tidak ada data pada periode ini.")) : filteredData.map(row => {
+                                // LOGIC PERBAIKAN TAMPILAN DATA
+                                const nopol = row.no_truk || row.nopol || '-';
+                                const customer = row.customerName || (row.tujuan ? row.tujuan.split('\n')[0] : '-');
+                                const itemsList = row.items || [];
+                                const barang = itemsList.length > 0 ? itemsList.map(i => i.nama).join(', ') : (row.itemName || '-');
+                                const qty = itemsList.length > 0 ? itemsList.map(i => `${i.qty_kirim} ${i.uom}`).join(', ') : `${row.qty || '-'} ${row.uom || ''}`;
+
+                                return React.createElement("tr", { key: row.id, className: "hover:bg-slate-50/80 border-b border-slate-100" },
+                                    React.createElement("td", { className: "p-4" }, row.tanggal),
+                                    React.createElement("td", { className: "p-4 font-bold text-slate-700" }, nopol), // Updated
                                     React.createElement("td", { className: "p-4" }, row.driver),
-                                    React.createElement("td", { className: "p-4" }, row.customerName),
-                                    React.createElement("td", { className: "p-4" }, row.itemName),
-                                    React.createElement("td", { className: "p-4 text-right font-bold" }, `${row.qty} ${row.uom}`),
+                                    React.createElement("td", { className: "p-4" }, customer), // Updated
+                                    React.createElement("td", { className: "p-4" }, barang), // Updated
+                                    React.createElement("td", { className: "p-4 text-right font-bold" }, qty), // Updated
                                     React.createElement("td", { className: "p-3 bg-amber-50/30 text-center" }, 
                                         React.createElement("div", { className: "flex items-center justify-center gap-1" },
                                             React.createElement("input", { type: "number", className: "w-16 p-1.5 border border-amber-200 rounded text-right text-xs bg-white focus:ring-1 focus:ring-amber-400 outline-none", placeholder: row.qtyActual || "0", value: editValues[row.id] !== undefined ? editValues[row.id] : (row.qtyActual || ''), onChange: (e) => setEditValues({...editValues, [row.id]: e.target.value}) }), 
@@ -522,7 +537,7 @@
                                     ),
                                     React.createElement("td", { className: "p-4 italic text-slate-400" }, row.notes || '-')
                                 )
-                            ))
+                            }))
                         )
                     )
                 )
@@ -549,7 +564,8 @@
                 no_truk: '',
                 pallet: '',
                 selectedTruckId: '',
-                selectedCustomerId: ''
+                selectedCustomerId: '',
+                customerName: '' // Tambahkan field ini
             });
 
             // UPDATE: Menambahkan field itemId dan code pada state items
@@ -690,6 +706,7 @@
                     setFormData(prev => ({
                         ...prev,
                         selectedCustomerId: custId,
+                        customerName: cust.name, // Simpan Nama Customer secara eksplisit
                         tujuan: `${cust.name}\n${cust.address}${ticketInfo}`
                     }));
                 }
@@ -828,7 +845,7 @@
                     const docPDF = createPDFObject({ header: formData, items: items.filter(i => i.nama) });
                     docPDF.save(`SJ_${formData.no_sj || 'Draft'}.pdf`);
                     setStatusMsg('Data Berhasil Disimpan, Armada BUSY & PDF Didownload!');
-                    setFormData(prev => ({ ...prev, tujuan: '', selectedCustomerId: '', no_so: '', priceOA: 0, selectedTruckId: '', driver: '', no_truk: '', tipe_truk: '' }));
+                    setFormData(prev => ({ ...prev, tujuan: '', selectedCustomerId: '', customerName: '', no_so: '', priceOA: 0, selectedTruckId: '', driver: '', no_truk: '', tipe_truk: '' }));
                     setItems([{ itemId: '', code: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }]);
                 } catch (error) {
                     console.error("Error saving:", error);
