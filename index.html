@@ -450,21 +450,29 @@
             const handleSaveActual = async (id) => {
                 const val = editValues[id];
                 if (val === undefined || val === '') return;
+                
+                // AUTH CHECK
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
+
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { qtyActual: Number(val) });
                     setEditValues(prev => { const next = {...prev}; delete next[id]; return next; });
                     alert("Qty Actual berhasil disimpan!");
-                } catch (err) { console.error("Error saving actual qty:", err); alert("Gagal menyimpan data."); }
+                } catch (err) { console.error("Error saving actual qty:", err); alert("Gagal menyimpan: " + err.message); }
             };
 
             const handleSaveStatus = async (id) => {
                 const val = editStatusValues[id];
                 if (val === undefined) return;
+
+                // AUTH CHECK
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
+
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { validationStatus: val });
                     setEditStatusValues(prev => { const next = {...prev}; delete next[id]; return next; });
                     alert("Status Validasi berhasil disimpan!");
-                } catch (err) { console.error("Error saving status:", err); alert("Gagal menyimpan status."); }
+                } catch (err) { console.error("Error saving status:", err); alert("Gagal menyimpan: " + err.message); }
             };
 
             const downloadExcel = () => {
@@ -797,6 +805,16 @@
             const handleSave = async (e) => {
                 e.preventDefault();
                 setIsSaving(true);
+
+                // AUTH CHECK
+                if (!auth.currentUser) { 
+                    try { await signInAnonymously(auth); } 
+                    catch(e) { 
+                        setIsSaving(false); 
+                        return alert("Koneksi terputus. Mohon refresh halaman."); 
+                    } 
+                }
+
                 try {
                     const dataToSave = { ...formData, items: items.filter(i => i.nama), timestamp: serverTimestamp(), createdBy: user.uid, status: 'COMPLETED' };
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), dataToSave);
@@ -932,8 +950,22 @@
                 });
                 return () => unsub();
             }, [user]);
-            const handleFinish = async (id) => { if(!confirm("Selesaikan transaksi?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { status: 'COMPLETED' }); };
-            const handleDelete = async (id) => { if(prompt("Password Admin:") !== 'admin123') return alert("Salah"); if(!confirm("Hapus permanen?")) return; await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id)); };
+            
+            const handleFinish = async (id) => { 
+                if(!confirm("Selesaikan transaksi?")) return; 
+                // AUTH CHECK
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { status: 'COMPLETED' }); 
+            };
+            
+            const handleDelete = async (id) => { 
+                if(prompt("Password Admin:") !== 'admin123') return alert("Salah"); 
+                if(!confirm("Hapus permanen?")) return; 
+                // AUTH CHECK
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id)); 
+            };
+            
             return React.createElement("div", { className: "space-y-3 no-print" },
                 React.createElement("h2", { className: "font-bold text-lg" }, "Log Transaksi"),
                 transactions.length === 0 ? React.createElement("p", {className: "text-center text-slate-400 py-10"}, "Belum ada riwayat.") : transactions.map(t => 
@@ -1007,18 +1039,32 @@
                 e.preventDefault(); 
                 setIsSubmitting(true);
 
-                // FIX: Auto-reconnect if auth is lost
-                if (!auth.currentUser) {
-                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                // 1. Cek User Auth Firebase (Robust Reconnect)
+                let currentUser = auth.currentUser;
+                if (!currentUser) {
+                    try {
+                        const userCredential = await signInAnonymously(auth);
+                        currentUser = userCredential.user;
+                    } catch (authErr) {
+                        console.error("Auth failed:", authErr);
+                        alert("Gagal terhubung ke database (Auth Error). Mohon refresh halaman.");
+                        setIsSubmitting(false);
+                        return; // STOP HERE
+                    }
                 }
 
+                // 2. Lanjut Simpan
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), { ...formData, priceOA: Number(formData.priceOA), createdAt: serverTimestamp() }); 
                     setFormData({ name: '', address: '', phone: '', district: '', priceOA: '' }); 
                     alert("Transporter berhasil disimpan!");
                 } catch (error) {
                     console.error("Error saving transporter:", error);
-                    alert("Gagal menyimpan: " + error.message);
+                    if (error.code === 'permission-denied') {
+                        alert("Gagal menyimpan: Izin ditolak. Pastikan Anda terhubung internet dan sudah login.");
+                    } else {
+                        alert("Gagal menyimpan: " + error.message);
+                    }
                 } finally {
                     setIsSubmitting(false);
                 }
