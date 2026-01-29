@@ -127,7 +127,7 @@
         } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase
@@ -451,28 +451,36 @@
                 const val = editValues[id];
                 if (val === undefined || val === '') return;
                 
-                // AUTH CHECK
-                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
-
+                // AUTH CHECK & RETRY
                 try {
+                    if (!auth.currentUser) await signInAnonymously(auth);
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { qtyActual: Number(val) });
                     setEditValues(prev => { const next = {...prev}; delete next[id]; return next; });
                     alert("Qty Actual berhasil disimpan!");
-                } catch (err) { console.error("Error saving actual qty:", err); alert("Gagal menyimpan: " + err.message); }
+                } catch (err) { 
+                    if(err.code === 'permission-denied') {
+                        try { await signInAnonymously(auth); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { qtyActual: Number(val) }); alert("Berhasil disimpan!"); return; } catch(e){}
+                    }
+                    console.error("Error saving actual qty:", err); alert("Gagal menyimpan: " + err.message); 
+                }
             };
 
             const handleSaveStatus = async (id) => {
                 const val = editStatusValues[id];
                 if (val === undefined) return;
 
-                // AUTH CHECK
-                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
-
+                // AUTH CHECK & RETRY
                 try {
+                    if (!auth.currentUser) await signInAnonymously(auth);
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { validationStatus: val });
                     setEditStatusValues(prev => { const next = {...prev}; delete next[id]; return next; });
                     alert("Status Validasi berhasil disimpan!");
-                } catch (err) { console.error("Error saving status:", err); alert("Gagal menyimpan: " + err.message); }
+                } catch (err) { 
+                    if(err.code === 'permission-denied') {
+                        try { await signInAnonymously(auth); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { validationStatus: val }); alert("Berhasil disimpan!"); return; } catch(e){}
+                    }
+                    console.error("Error saving status:", err); alert("Gagal menyimpan: " + err.message); 
+                }
             };
 
             const downloadExcel = () => {
@@ -824,7 +832,11 @@
                     setFormData(prev => ({ ...prev, tujuan: '', selectedCustomerId: '', no_so: '', priceOA: 0 }));
                 } catch (error) {
                     console.error("Error saving:", error);
-                    setStatusMsg('Gagal menyimpan data: ' + error.message);
+                    if (error.code === 'permission-denied') {
+                        alert("⛔ GAGAL MENYIMPAN: IZIN DITOLAK FIREBASE\n\nSolusi Wajib di Firebase Console:\n1. Menu Authentication > Sign-in method > Aktifkan 'Anonymous'\n2. Menu Firestore Database > Rules > Ganti menjadi 'allow read, write: if true;'");
+                    } else {
+                        setStatusMsg('Gagal menyimpan data: ' + error.message);
+                    }
                 }
                 setIsSaving(false);
             };
@@ -953,17 +965,29 @@
             
             const handleFinish = async (id) => { 
                 if(!confirm("Selesaikan transaksi?")) return; 
-                // AUTH CHECK
-                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { status: 'COMPLETED' }); 
+                try {
+                    if (!auth.currentUser) await signInAnonymously(auth);
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { status: 'COMPLETED' }); 
+                } catch(e) {
+                    if(e.code === 'permission-denied') {
+                        try { await signInAnonymously(auth); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { status: 'COMPLETED' }); alert("Berhasil!"); return; } catch(err){}
+                    }
+                    alert("Gagal update status.");
+                }
             };
             
             const handleDelete = async (id) => { 
                 if(prompt("Password Admin:") !== 'admin123') return alert("Salah"); 
                 if(!confirm("Hapus permanen?")) return; 
-                // AUTH CHECK
-                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) { return alert("Koneksi terputus. Coba lagi."); } }
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id)); 
+                try {
+                    if (!auth.currentUser) await signInAnonymously(auth);
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id)); 
+                } catch(e) {
+                    if(e.code === 'permission-denied') {
+                        try { await signInAnonymously(auth); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id)); alert("Berhasil dihapus!"); return; } catch(err){}
+                    }
+                    alert("Gagal menghapus.");
+                }
             };
             
             return React.createElement("div", { className: "space-y-3 no-print" },
@@ -1001,7 +1025,11 @@
                     alert("Customer berhasil disimpan!");
                 } catch (error) {
                     console.error("Error saving customer:", error);
-                    alert("Gagal menyimpan: " + error.message);
+                    if (error.code === 'permission-denied') {
+                        alert("⛔ GAGAL MENYIMPAN: IZIN DITOLAK FIREBASE\n\nSolusi Wajib di Firebase Console:\n1. Menu Authentication > Sign-in method > Aktifkan 'Anonymous'\n2. Menu Firestore Database > Rules > Ganti menjadi 'allow read, write: if true;'");
+                    } else {
+                        alert("Gagal menyimpan: " + error.message);
+                    }
                 } finally {
                     setIsSubmitting(false);
                 }
@@ -1009,13 +1037,21 @@
 
             const saveEdit = async () => { 
                 if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingId), { name: editData.name, address: editData.address, district: editData.district }); 
-                setEditingId(null); 
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingId), { name: editData.name, address: editData.address, district: editData.district }); 
+                    setEditingId(null);
+                } catch (error) {
+                    if (error.code === 'permission-denied') alert("Gagal Edit: Cek Rules Firebase Console Anda.");
+                }
             };
             const deleteCustomer = async (id) => { 
                 if(confirm("Hapus?")) {
                     if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', id)); 
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', id)); 
+                    } catch (error) {
+                        if (error.code === 'permission-denied') alert("Gagal Hapus: Cek Rules Firebase Console Anda.");
+                    }
                 }
             };
             
@@ -1061,7 +1097,7 @@
                 } catch (error) {
                     console.error("Error saving transporter:", error);
                     if (error.code === 'permission-denied') {
-                        alert("Gagal menyimpan: Izin ditolak. Pastikan Anda terhubung internet dan sudah login.");
+                        alert("⛔ GAGAL MENYIMPAN: IZIN DITOLAK FIREBASE\n\nSolusi Wajib di Firebase Console:\n1. Menu Authentication > Sign-in method > Aktifkan 'Anonymous'\n2. Menu Firestore Database > Rules > Ganti menjadi 'allow read, write: if true;'");
                     } else {
                         alert("Gagal menyimpan: " + error.message);
                     }
@@ -1072,12 +1108,21 @@
 
             const saveEdit = async () => { 
                 if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', editingId), { name: editData.name, address: editData.address, phone: editData.phone, district: editData.district, priceOA: Number(editData.priceOA) }); setEditingId(null); 
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', editingId), { name: editData.name, address: editData.address, phone: editData.phone, district: editData.district, priceOA: Number(editData.priceOA) }); 
+                    setEditingId(null); 
+                } catch (error) {
+                    if (error.code === 'permission-denied') alert("Gagal Edit: Cek Rules Firebase Console Anda.");
+                }
             };
             const deleteTransporter = async (id) => { 
                 if(confirm("Hapus?")) {
                     if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', id)); 
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', id)); 
+                    } catch (error) {
+                        if (error.code === 'permission-denied') alert("Gagal Hapus: Cek Rules Firebase Console Anda.");
+                    }
                 }
             };
             
@@ -1112,7 +1157,11 @@
                     alert("Barang berhasil disimpan!");
                 } catch (error) {
                     console.error("Error saving item:", error);
-                    alert("Gagal menyimpan: " + error.message);
+                    if (error.code === 'permission-denied') {
+                        alert("⛔ GAGAL MENYIMPAN: IZIN DITOLAK FIREBASE\n\nSolusi Wajib di Firebase Console:\n1. Menu Authentication > Sign-in method > Aktifkan 'Anonymous'\n2. Menu Firestore Database > Rules > Ganti menjadi 'allow read, write: if true;'");
+                    } else {
+                        alert("Gagal menyimpan: " + error.message);
+                    }
                 } finally {
                     setIsSubmitting(false);
                 }
@@ -1120,12 +1169,20 @@
 
             const saveEdit = async () => { 
                 if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); 
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); 
+                } catch (error) {
+                    if (error.code === 'permission-denied') alert("Gagal Edit: Cek Rules Firebase Console Anda.");
+                }
             };
             const deleteItem = async (id) => { 
                 if(confirm("Hapus?")) {
                     if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', id)); 
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', id)); 
+                    } catch (error) {
+                        if (error.code === 'permission-denied') alert("Gagal Hapus: Cek Rules Firebase Console Anda.");
+                    }
                 }
             };
             
@@ -1174,7 +1231,11 @@
                     alert("Armada berhasil disimpan!");
                 } catch (error) {
                     console.error("Error saving truck:", error);
-                    alert("Gagal menyimpan: " + error.message);
+                    if (error.code === 'permission-denied') {
+                        alert("⛔ GAGAL MENYIMPAN: IZIN DITOLAK FIREBASE\n\nSolusi Wajib di Firebase Console:\n1. Menu Authentication > Sign-in method > Aktifkan 'Anonymous'\n2. Menu Firestore Database > Rules > Ganti menjadi 'allow read, write: if true;'");
+                    } else {
+                        alert("Gagal menyimpan: " + error.message);
+                    }
                 } finally {
                     setIsSubmitting(false);
                 }
@@ -1182,9 +1243,6 @@
 
             const startEdit = (truck) => {
                 const password = prompt("Masukkan Password Admin untuk Edit Armada:");
-                // Untuk Transporter, kita anggap mereka tahu password ini atau kita bypass, 
-                // tapi demi keamanan standard di kode ini saya biarkan check password admin. 
-                // Jika ingin transporter bisa edit tanpa pass, hapus blok if ini.
                 if (password !== 'admin123') {
                     alert("Password Salah! Akses ditolak.");
                     return;
@@ -1349,8 +1407,6 @@
         };
 
         const SettingsPage = ({ user }) => {
-            const [isAuthenticated, setIsAuthenticated] = useState(false);
-            const [loginData, setLoginData] = useState({ username: '', password: '' });
             const [activeTab, setActiveTab] = useState('general');
             const [coords, setCoords] = useState(DEFAULT_COORDS);
             const [waConfig, setWaConfig] = useState({ token: '', targetGroups: '' });
@@ -1437,7 +1493,7 @@
                 const exists = usersList.some(u => u.username.toLowerCase() === newUser.username.toLowerCase());
                 if(exists) return alert("Gagal: Username sudah terdaftar! Gunakan yang lain.");
 
-                setLoading(true); // Manfaatkan state loading yg sudah ada
+                setLoading(true); 
                 
                 // FIX: Auto-reconnect
                 if (!auth.currentUser) {
@@ -1787,20 +1843,14 @@
 
             useEffect(() => {
                 const initAuth = async () => {
-                    let retries = 3;
-                    while (retries > 0 && !auth.currentUser) {
-                        try {
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                            break; 
-                        } catch (error) {
-                            console.error("Auth error, retrying...", error);
-                            retries--;
-                            await new Promise(r => setTimeout(r, 1000));
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
                         }
+                    } catch (error) {
+                        console.error("Auth error:", error);
                     }
                 };
                 initAuth();
