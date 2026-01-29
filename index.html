@@ -63,6 +63,17 @@
             margin-bottom: 0.25rem;
         }
 
+        /* Marquee Animation */
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+            display: inline-block;
+            animation: marquee 10s linear infinite;
+            white-space: nowrap;
+        }
+
         @media print {
             body { background: white !important; }
             .no-print { display: none !important; }
@@ -106,7 +117,7 @@
             Box, Search, History, Settings, Save, AlertCircle, Users, 
             Package, Printer, Calendar, FileText, X, Eye, AlignJustify, 
             TrendingUp, MessageSquare, Pencil, Trash2, FileSpreadsheet, Download, Send, Lock, Info, AlertTriangle, LogOut,
-            Scale, Receipt, Database, Server, Briefcase
+            Scale, Receipt, Database, Server, Briefcase, MapPin, Navigation
         } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -130,7 +141,7 @@
 
         const TRUCK_TYPES = ['CDD', 'TRONTON', 'DUMPTRUK', 'WINGBOX', 'KONTAINER', 'BOX', 'MOBIL PRIBADI'];
 
-        // Default Coordinate Configuration (mm) - FIXED: Re-added missing constant
+        // Default Coordinate Configuration (mm)
         const DEFAULT_COORDS = {
             date: { top: 35, left: 140, label: 'Tanggal' },
             nopol: { top: 42, left: 140, label: 'No Polisi' },
@@ -143,637 +154,9 @@
             driver: { top: 125, left: 75, label: 'Nama Driver' }
         };
 
-        // --- TransactionForm Component Baru ---
-        const TransactionForm = ({ user }) => {
-            // Data Master States
-            const [masterTransporters, setMasterTransporters] = useState([]);
-            const [masterTrucks, setMasterTrucks] = useState([]);
-            const [masterCustomers, setMasterCustomers] = useState([]);
-            const [masterItems, setMasterItems] = useState([]);
-            const [nextSjNumber, setNextSjNumber] = useState('0001');
+        // --- DEFINISI KOMPONEN ---
 
-            // Form States
-            const [formData, setFormData] = useState({
-                tujuan: '',
-                no_sj: '',
-                tanggal: new Date().toISOString().split('T')[0],
-                no_so: '',
-                transporter: '',
-                driver: '',
-                tipe_truk: '',
-                no_truk: '',
-                pallet: '',
-                selectedTruckId: '', // Helper state
-                selectedCustomerId: '' // Helper state
-            });
-
-            // State Items Table
-            const [items, setItems] = useState([
-                { kode: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }
-            ]);
-
-            // UI States
-            const [showSettings, setShowSettings] = useState(false);
-            const [showPreview, setShowPreview] = useState(false);
-            const [previewUrl, setPreviewUrl] = useState('');
-            const [statusMsg, setStatusMsg] = useState('');
-            const [isSaving, setIsSaving] = useState(false);
-
-            // Print Config State
-            const [layoutConfig, setLayoutConfig] = useState({
-                pageSize: { w: 229, h: 162 }, 
-                fontSize: 10,
-                fontName: 'courier', 
-                globalOffset: { x: 5, y: 13 },
-                headerGap: 0,
-                header: {
-                    no_sj: { x: 160, y: 22 }, 
-                    tanggal: { x: 160, y: 26 },
-                    no_so: { x: 160, y: 32.7 },
-                    transporter: { x: 160, y: 36.7 },
-                    tipe_truk: { x: 160, y: 44 },
-                    no_truk: { x: 160, y: 48 },
-                    driver: { x: 160, y: 52 }
-                },
-                tujuan: { x: 20, y: 32, maxWidth: 80, lineHeight: 5 },
-                table: {
-                    startY: 68,     
-                    rowHeight: 6,    
-                    cols: {          
-                        kode: 12, nama: 42, uom: 95, qty_pesan: 110, qty_kirim: 130, berat: 150, total: 175
-                    }
-                },
-                footer: {
-                    pallet: { x: 90, y: 130 }
-                }
-            });
-
-            // --- 1. Load All Master Data & Settings ---
-            useEffect(() => {
-                if (!user) return;
-
-                // Load Settings from LocalStorage
-                const x = localStorage.getItem('sj_config_offset_x');
-                const y = localStorage.getItem('sj_config_offset_y');
-                const hGap = localStorage.getItem('sj_config_header_gap');
-                const fSize = localStorage.getItem('sj_config_font_size');
-
-                setLayoutConfig(prev => ({
-                    ...prev,
-                    globalOffset: {
-                        x: x !== null ? parseFloat(x) : prev.globalOffset.x,
-                        y: y !== null ? parseFloat(y) : prev.globalOffset.y
-                    },
-                    headerGap: hGap !== null ? parseFloat(hGap) : prev.headerGap,
-                    fontSize: fSize !== null ? parseFloat(fSize) : prev.fontSize
-                }));
-
-                // Fetch Collections
-                const unsubTrans = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), s => 
-                    setMasterTransporters(s.docs.map(d => ({id: d.id, ...d.data()})))
-                );
-                const unsubTrucks = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'trucks'), s => 
-                    setMasterTrucks(s.docs.map(d => ({id: d.id, ...d.data()})))
-                );
-                const unsubCust = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), s => 
-                    setMasterCustomers(s.docs.map(d => ({id: d.id, ...d.data()})))
-                );
-                const unsubItems = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'items'), s => 
-                    setMasterItems(s.docs.map(d => ({id: d.id, ...d.data()})))
-                );
-                // Fetch Count for SJ Number
-                const unsubTransacts = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), s => {
-                    const count = s.size + 1;
-                    setNextSjNumber(String(count).padStart(4, '0'));
-                });
-
-                return () => {
-                    unsubTrans(); unsubTrucks(); unsubCust(); unsubItems(); unsubTransacts();
-                };
-            }, [user]);
-
-            // --- 2. Auto Generate No SJ ---
-            useEffect(() => {
-                if(nextSjNumber) {
-                    const d = new Date();
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const yy = String(d.getFullYear()).slice(-2);
-                    setFormData(prev => ({
-                        ...prev,
-                        no_sj: `SDO-MKI/${mm}/${yy}/${nextSjNumber}`
-                    }));
-                }
-            }, [nextSjNumber]);
-
-            // --- 3. Handlers with Automation ---
-
-            const handleHeaderChange = (e) => {
-                setFormData({ ...formData, [e.target.name]: e.target.value });
-            };
-
-            // Handle Truck Selection
-            const handleTruckSelect = (e) => {
-                const truckId = e.target.value;
-                const truck = masterTrucks.find(t => t.id === truckId);
-                
-                if (truck) {
-                    setFormData(prev => ({
-                        ...prev,
-                        selectedTruckId: truckId,
-                        driver: truck.driver || '',
-                        tipe_truk: truck.type || '',
-                        no_truk: truck.nopol || '',
-                        // Append Ticket No to Tujuan if Customer is already selected
-                        tujuan: prev.tujuan.split('\nNo Tiket:')[0] + (truck.ticketNumber ? `\nNo Tiket: ${truck.ticketNumber}` : '')
-                    }));
-
-                    // Update Qty Kirim in Table with Net Weight
-                    const netWeight = parseFloat(truck.netWeight) || 0;
-                    const ton = netWeight / 1000;
-                    
-                    setItems(prevItems => prevItems.map(item => ({
-                        ...item,
-                        qty_kirim: netWeight,
-                        total_berat: ton
-                    })));
-                } else {
-                    setFormData(prev => ({ ...prev, selectedTruckId: '', driver: '', tipe_truk: '', no_truk: '' }));
-                }
-            };
-
-            // Handle Customer Selection
-            const handleCustomerSelect = (e) => {
-                const custId = e.target.value;
-                const cust = masterCustomers.find(c => c.id === custId);
-                const currentTruck = masterTrucks.find(t => t.id === formData.selectedTruckId);
-                
-                if (cust) {
-                    const ticketInfo = currentTruck?.ticketNumber ? `\nNo Tiket: ${currentTruck.ticketNumber}` : '';
-                    setFormData(prev => ({
-                        ...prev,
-                        selectedCustomerId: custId,
-                        tujuan: `${cust.name}\n${cust.address}${ticketInfo}`
-                    }));
-                }
-            };
-
-            // Handle Item Selection & Calculation
-            const handleItemSelect = (index, e) => {
-                const itemId = e.target.value;
-                const itemData = masterItems.find(i => i.id === itemId);
-                
-                const newItems = [...items];
-                if (itemData) {
-                    newItems[index].kode = itemId; // Using ID as Kode for now or actual kode if exists
-                    newItems[index].nama = itemData.name;
-                    newItems[index].uom = itemData.uom;
-                    
-                    // Auto fill Qty Kirim from current Truck Net Weight
-                    const currentTruck = masterTrucks.find(t => t.id === formData.selectedTruckId);
-                    const netWeight = currentTruck ? (parseFloat(currentTruck.netWeight) || 0) : 0;
-                    newItems[index].qty_kirim = netWeight;
-                    newItems[index].total_berat = netWeight / 1000;
-
-                    // Update Header SO from Item Notes
-                    if(itemData.notes) {
-                        setFormData(prev => ({ ...prev, no_so: itemData.notes }));
-                    }
-                }
-                setItems(newItems);
-            };
-
-            const handleItemChange = (index, field, value) => {
-                const newItems = [...items];
-                newItems[index][field] = value;
-
-                // Auto Calc Tonase if Qty Kirim changes manually
-                if (field === 'qty_kirim') {
-                    const qty = parseFloat(value) || 0;
-                    newItems[index].total_berat = qty / 1000;
-                }
-
-                setItems(newItems);
-            };
-
-            const addItem = () => {
-                const currentTruck = masterTrucks.find(t => t.id === formData.selectedTruckId);
-                const netWeight = currentTruck ? (parseFloat(currentTruck.netWeight) || 0) : 0;
-                
-                setItems([...items, { 
-                    kode: '', nama: '', uom: '', qty_pesan: '', 
-                    qty_kirim: netWeight, 
-                    berat: '', 
-                    total_berat: netWeight / 1000 
-                }]);
-            };
-
-            const removeItem = (index) => {
-                if (items.length > 1) {
-                    setItems(items.filter((_, i) => i !== index));
-                }
-            };
-
-            // PDF Generation Logic (Ported from Snippet)
-            const createPDFObject = (data) => {
-                const { jsPDF } = window.jspdf;
-                const cfg = layoutConfig;
-                
-                const doc = new jsPDF({
-                    orientation: 'landscape',
-                    unit: 'mm',
-                    format: [cfg.pageSize.w, cfg.pageSize.h]
-                });
-
-                doc.setFont(cfg.fontName, 'normal');
-                doc.setFontSize(cfg.fontSize);
-
-                const getX = (val) => val + cfg.globalOffset.x;
-                const getY = (val) => val + cfg.globalOffset.y;
-                const hGap = cfg.headerGap || 0;
-
-                const txt = (str, x, y, lineIndex = 0) => { 
-                    if(str) {
-                        const finalY = getY(y) + (lineIndex * hGap);
-                        doc.text(String(str).toUpperCase(), getX(x), finalY); 
-                    }
-                };
-
-                const h = data.header;
-                const hc = cfg.header;
-                
-                // Header fields
-                txt(h.no_sj, hc.no_sj.x, hc.no_sj.y, 0);
-                
-                let tgl = h.tanggal;
-                if (tgl) {
-                    const d = new Date(tgl);
-                    tgl = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
-                }
-                txt(tgl, hc.tanggal.x, hc.tanggal.y, 1);
-                txt(h.no_so, hc.no_so.x, hc.no_so.y, 2);
-                txt(h.transporter, hc.transporter.x, hc.transporter.y, 3);
-                txt(h.tipe_truk, hc.tipe_truk.x, hc.tipe_truk.y, 4);
-                txt(h.no_truk, hc.no_truk.x, hc.no_truk.y, 5);
-                txt(h.driver, hc.driver.x, hc.driver.y, 6);
-
-                const tc = cfg.tujuan;
-                if (h.tujuan) {
-                    const splitTujuan = doc.splitTextToSize(h.tujuan.toUpperCase(), tc.maxWidth);
-                    doc.text(splitTujuan, getX(tc.x), getY(tc.y));
-                }
-
-                let currentY = cfg.table.startY;
-                const tableC = cfg.table;
-                
-                data.items.forEach(item => {
-                    const txtTable = (str, x, y) => { if(str) doc.text(String(str).toUpperCase(), getX(x), getY(y)); };
-                    
-                    txtTable(item.kode, tableC.cols.kode, currentY);
-                    txtTable(item.nama, tableC.cols.nama, currentY);
-                    txtTable(item.uom, tableC.cols.uom, currentY);
-                    txtTable(item.qty_pesan, tableC.cols.qty_pesan, currentY);
-                    txtTable(item.qty_kirim, tableC.cols.qty_kirim, currentY);
-                    txtTable(item.berat, tableC.cols.berat, currentY);
-                    txtTable(item.total_berat, tableC.cols.total, currentY);
-                    currentY += tableC.rowHeight;
-                });
-
-                if (h.pallet) {
-                    const txtFooter = (str, x, y) => { if(str) doc.text(String(str).toUpperCase(), getX(x), getY(y)); };
-                    txtFooter(h.pallet, cfg.footer.pallet.x, cfg.footer.pallet.y);
-                }
-
-                return doc;
-            };
-
-            const handlePreview = () => {
-                if(!formData.no_sj) { alert('Mohon isi No. Surat Jalan (minimal dummy) untuk preview'); return; }
-                const doc = createPDFObject({ header: formData, items: items.filter(i => i.nama) });
-                const pdfData = doc.output('datauristring');
-                setPreviewUrl(pdfData);
-                setShowPreview(true);
-            };
-
-            const saveSettings = (newConfig) => {
-                setLayoutConfig(newConfig);
-                localStorage.setItem('sj_config_offset_x', newConfig.globalOffset.x);
-                localStorage.setItem('sj_config_offset_y', newConfig.globalOffset.y);
-                localStorage.setItem('sj_config_header_gap', newConfig.headerGap);
-                localStorage.setItem('sj_config_font_size', newConfig.fontSize);
-            };
-
-            const handleSave = async (e) => {
-                e.preventDefault();
-                setIsSaving(true);
-                setStatusMsg('');
-
-                try {
-                    const dataToSave = {
-                        ...formData,
-                        items: items.filter(i => i.nama),
-                        timestamp: serverTimestamp(),
-                        createdBy: user.uid,
-                        status: 'COMPLETED' // Assume completed directly or active
-                    };
-
-                    // Save to Firebase
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), dataToSave);
-
-                    // Download PDF
-                    const doc = createPDFObject({ header: formData, items: items.filter(i => i.nama) });
-                    doc.save(`SJ_${formData.no_sj || 'Draft'}.pdf`);
-
-                    setStatusMsg('Data Berhasil Disimpan & PDF Didownload!');
-                    // Clear select fields but keep header details that might repeat
-                    setFormData(prev => ({ 
-                        ...prev, 
-                        tujuan: '', 
-                        selectedCustomerId: '', 
-                        no_so: '',
-                        // Keep truck info? Usually one truck per DO. Let's keep data for speed input unless changed.
-                    })); 
-                } catch (error) {
-                    console.error("Error saving:", error);
-                    setStatusMsg('Gagal menyimpan data: ' + error.message);
-                }
-                setIsSaving(false);
-            };
-
-            // Settings Modal Component
-            const SettingsModal = () => {
-                const [localCfg, setLocalCfg] = useState(layoutConfig);
-
-                const updateVal = (key, val) => {
-                    setLocalCfg(prev => {
-                        const next = { ...prev };
-                        if (key === 'offsetX') next.globalOffset.x = parseFloat(val);
-                        if (key === 'offsetY') next.globalOffset.y = parseFloat(val);
-                        if (key === 'headerGap') next.headerGap = parseFloat(val);
-                        if (key === 'fontSize') next.fontSize = parseFloat(val);
-                        return next;
-                    });
-                };
-
-                const adjust = (key, delta) => {
-                    let current = 0;
-                    if (key === 'offsetX') current = localCfg.globalOffset.x;
-                    if (key === 'offsetY') current = localCfg.globalOffset.y;
-                    if (key === 'headerGap') current = localCfg.headerGap;
-                    updateVal(key, (current + delta).toFixed(1));
-                };
-
-                return React.createElement("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 preview-modal" },
-                    React.createElement("div", { className: "bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden" },
-                        React.createElement("div", { className: "flex justify-between items-center p-4 border-b" },
-                            React.createElement("h3", { className: "text-lg font-medium" }, "Pengaturan Kertas"),
-                            React.createElement("button", { onClick: () => setShowSettings(false), className: "text-gray-400 hover:text-gray-500" }, React.createElement(X, { size: 20 }))
-                        ),
-                        React.createElement("div", { className: "p-4 space-y-4 bg-gray-50" },
-                            // Offset X
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Geser Horizontal (X) - mm"),
-                                React.createElement("div", { className: "flex items-center mt-1" },
-                                    React.createElement("button", { onClick: () => adjust('offsetX', -1), className: "p-2 bg-gray-200 rounded-l hover:bg-gray-300" }, "-"),
-                                    React.createElement("input", { type: "number", className: "block w-full text-center border-gray-300 h-9 border-t border-b", value: localCfg.globalOffset.x, onChange: e => updateVal('offsetX', e.target.value) }),
-                                    React.createElement("button", { onClick: () => adjust('offsetX', 1), className: "p-2 bg-gray-200 rounded-r hover:bg-gray-300" }, "+")
-                                )
-                            ),
-                            // Offset Y
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Geser Vertikal (Y) - mm"),
-                                React.createElement("div", { className: "flex items-center mt-1" },
-                                    React.createElement("button", { onClick: () => adjust('offsetY', -1), className: "p-2 bg-gray-200 rounded-l hover:bg-gray-300" }, "-"),
-                                    React.createElement("input", { type: "number", className: "block w-full text-center border-gray-300 h-9 border-t border-b", value: localCfg.globalOffset.y, onChange: e => updateVal('offsetY', e.target.value) }),
-                                    React.createElement("button", { onClick: () => adjust('offsetY', 1), className: "p-2 bg-gray-200 rounded-r hover:bg-gray-300" }, "+")
-                                )
-                            ),
-                            // Header Gap
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Jarak Antar Baris Header - mm"),
-                                React.createElement("div", { className: "flex items-center mt-1" },
-                                    React.createElement("button", { onClick: () => adjust('headerGap', -0.5), className: "p-2 bg-gray-200 rounded-l hover:bg-gray-300" }, "-"),
-                                    React.createElement("input", { type: "number", className: "block w-full text-center border-gray-300 h-9 border-t border-b", value: localCfg.headerGap, onChange: e => updateVal('headerGap', e.target.value) }),
-                                    React.createElement("button", { onClick: () => adjust('headerGap', 0.5), className: "p-2 bg-gray-200 rounded-r hover:bg-gray-300" }, "+")
-                                )
-                            ),
-                            // Font Size
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Ukuran Font (pt)"),
-                                React.createElement("input", { type: "number", className: "input-field mt-1", value: localCfg.fontSize, onChange: e => updateVal('fontSize', e.target.value) })
-                            )
-                        ),
-                        React.createElement("div", { className: "p-4 flex flex-col gap-2" },
-                            React.createElement("button", { 
-                                onClick: () => {
-                                    saveSettings(localCfg);
-                                    setShowSettings(false);
-                                    setTimeout(handlePreview, 300);
-                                },
-                                className: "w-full px-4 py-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 flex justify-center items-center gap-2"
-                            }, React.createElement("i", { className: "fa-solid fa-check-double" }), "Simpan & Lihat Preview"),
-                            React.createElement("button", {
-                                onClick: () => {
-                                    saveSettings(localCfg);
-                                    setShowSettings(false);
-                                },
-                                className: "w-full px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 font-medium"
-                            }, "Simpan Saja")
-                        )
-                    )
-                );
-            };
-
-            return React.createElement("div", { className: "max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden relative no-print" },
-                // Header
-                React.createElement("div", { className: "bg-indigo-600 px-6 py-4 flex justify-between items-center" },
-                    React.createElement("div", null,
-                        React.createElement("h2", { className: "text-xl font-bold text-white" }, "Input Surat Jalan MKI"),
-                        React.createElement("p", { className: "text-indigo-100 text-sm" }, "Setting Printer: Envelope C5 (229x162mm)")
-                    ),
-                    React.createElement("div", { className: "flex items-center gap-5" },
-                        React.createElement("button", { onClick: handlePreview, className: "text-indigo-200 hover:text-white transition flex flex-col items-center group", title: "Preview PDF" },
-                            React.createElement("i", { className: "fa-solid fa-eye text-xl mb-1 group-hover:scale-110 transition-transform" }),
-                            React.createElement("span", { className: "text-[10px] font-medium uppercase tracking-wider" }, "Preview")
-                        ),
-                        React.createElement("div", { className: "h-8 w-px bg-indigo-500" }),
-                        React.createElement("button", { onClick: () => setShowSettings(true), className: "text-indigo-200 hover:text-white transition flex flex-col items-center group", title: "Pengaturan Kertas" },
-                            React.createElement("i", { className: "fa-solid fa-gear text-xl mb-1 group-hover:rotate-45 transition-transform duration-300" }),
-                            React.createElement("span", { className: "text-[10px] font-medium uppercase tracking-wider" }, "Setting")
-                        )
-                    )
-                ),
-
-                // Form
-                React.createElement("form", { onSubmit: handleSave, className: "p-6 space-y-6" },
-                    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
-                        // Column 1
-                        React.createElement("div", { className: "space-y-4" },
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "label-text" }, "Customer / Tujuan (Auto Address + Ticket)"),
-                                React.createElement("select", { 
-                                    className: "input-field mb-2", 
-                                    value: formData.selectedCustomerId, 
-                                    onChange: handleCustomerSelect 
-                                },
-                                    React.createElement("option", { value: "" }, "- Pilih Customer -"),
-                                    masterCustomers.map(c => React.createElement("option", { key: c.id, value: c.id }, c.name))
-                                ),
-                                React.createElement("textarea", { 
-                                    name: "tujuan", 
-                                    required: true, 
-                                    className: "input-field h-24", 
-                                    placeholder: "Detail Alamat & No Tiket otomatis muncul di sini...",
-                                    value: formData.tujuan,
-                                    onChange: handleHeaderChange
-                                })
-                            )
-                        ),
-                        // Column 2
-                        React.createElement("div", { className: "space-y-3 bg-gray-50 p-4 rounded-md border" },
-                            React.createElement("div", { className: "grid grid-cols-2 gap-2" },
-                                React.createElement("div", null,
-                                    React.createElement("label", { className: "label-text" }, "No. Surat Jalan (Auto)"),
-                                    React.createElement("input", { type: "text", name: "no_sj", required: true, className: "input-field bg-gray-100", value: formData.no_sj, readOnly: true })
-                                ),
-                                React.createElement("div", null,
-                                    React.createElement("label", { className: "label-text" }, "Tanggal"),
-                                    React.createElement("input", { type: "date", name: "tanggal", required: true, className: "input-field", value: formData.tanggal, onChange: handleHeaderChange })
-                                )
-                            ),
-                            React.createElement("div", null,
-                                React.createElement("label", { className: "label-text" }, "No. Sales Order (Auto from Item Note)"),
-                                React.createElement("input", { type: "text", name: "no_so", className: "input-field bg-gray-50", value: formData.no_so, onChange: handleHeaderChange, placeholder: "Otomatis dari Keterangan Barang" })
-                            ),
-                            React.createElement("div", { className: "grid grid-cols-2 gap-2" },
-                                React.createElement("div", null,
-                                    React.createElement("label", { className: "label-text" }, "Transporter"),
-                                    React.createElement("select", { name: "transporter", className: "input-field", value: formData.transporter, onChange: handleHeaderChange },
-                                        React.createElement("option", { value: "" }, "- Pilih -"),
-                                        masterTransporters.map(t => React.createElement("option", { key: t.id, value: t.name }, t.name))
-                                    )
-                                ),
-                                React.createElement("div", null,
-                                    React.createElement("label", { className: "label-text" }, "Pilih Armada (Auto Fill)"),
-                                    React.createElement("select", { className: "input-field", value: formData.selectedTruckId, onChange: handleTruckSelect },
-                                        React.createElement("option", { value: "" }, "- Pilih Nopol -"),
-                                        masterTrucks.map(t => React.createElement("option", { key: t.id, value: t.id }, t.nopol))
-                                    )
-                                )
-                            ),
-                            React.createElement("div", { className: "grid grid-cols-3 gap-2" },
-                                React.createElement("div", null,
-                                    React.createElement("label", { className: "label-text text-xs" }, "Driver"),
-                                    React.createElement("input", { type: "text", name: "driver", className: "input-field bg-gray-100", value: formData.driver, readOnly: true })
-                                ),
-                                React.createElement("div", null,
-                                    React.createElement("label", { className: "label-text text-xs" }, "Tipe"),
-                                    React.createElement("input", { type: "text", name: "tipe_truk", className: "input-field bg-gray-100", value: formData.tipe_truk, readOnly: true })
-                                ),
-                                React.createElement("div", null,
-                                    React.createElement("label", { className: "label-text text-xs" }, "Nopol"),
-                                    React.createElement("input", { type: "text", name: "no_truk", className: "input-field bg-gray-100", value: formData.no_truk, readOnly: true })
-                                )
-                            )
-                        )
-                    ),
-
-                    // Table Items
-                    React.createElement("div", null,
-                        React.createElement("h3", { className: "text-lg font-medium text-gray-900 border-b pb-2 mb-3" }, "Daftar Barang"),
-                        React.createElement("div", { className: "overflow-x-auto" },
-                            React.createElement("table", { className: "min-w-full divide-y divide-gray-200" },
-                                React.createElement("thead", { className: "bg-gray-50" },
-                                    React.createElement("tr", null,
-                                        ["Nama Item", "UoM", "Qty Pesan", "Qty Kirim (Netto)", "Berat (kg)", "Total (Ton)", ""].map((h, i) => 
-                                            React.createElement("th", { key: i, className: `px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase ${h === "Nama Item" ? "w-1/3" : ""}` }, h)
-                                        )
-                                    )
-                                ),
-                                React.createElement("tbody", { className: "bg-white divide-y divide-gray-200" },
-                                    items.map((item, idx) => 
-                                        React.createElement("tr", { key: idx },
-                                            // Nama Item Dropdown
-                                            React.createElement("td", { className: "px-2 py-1" }, 
-                                                React.createElement("select", { 
-                                                    className: "input-field text-xs", 
-                                                    value: item.kode, // Using kode to store selected ID
-                                                    onChange: (e) => handleItemSelect(idx, e)
-                                                },
-                                                    React.createElement("option", { value: "" }, "- Pilih Barang -"),
-                                                    masterItems.map(i => React.createElement("option", { key: i.id, value: i.id }, i.name))
-                                                )
-                                            ),
-                                            // UoM Auto
-                                            React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "text", className: "input-field text-xs bg-gray-50", value: item.uom, readOnly: true })),
-                                            // Qty Pesan Manual
-                                            React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs", value: item.qty_pesan, onChange: e => handleItemChange(idx, 'qty_pesan', e.target.value) })),
-                                            // Qty Kirim Auto from Truck
-                                            React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs bg-yellow-50", value: item.qty_kirim, onChange: e => handleItemChange(idx, 'qty_kirim', e.target.value) })),
-                                            // Berat Manual
-                                            React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs", step: "0.01", value: item.berat, onChange: e => handleItemChange(idx, 'berat', e.target.value) })),
-                                            // Total Ton Auto Calc
-                                            React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs bg-gray-50", step: "0.001", value: item.total_berat, readOnly: true })),
-                                            
-                                            React.createElement("td", { className: "px-2 py-1 text-center" }, 
-                                                React.createElement("button", { type: "button", onClick: () => removeItem(idx), className: "text-red-600 hover:text-red-900 font-bold" }, "X")
-                                            )
-                                        )
-                                    )
-                                )
-                            )
-                        ),
-                        React.createElement("button", { type: "button", onClick: addItem, className: "mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200" },
-                            "+ Tambah Baris"
-                        )
-                    ),
-
-                    // Pallet
-                    React.createElement("div", { className: "grid grid-cols-2 gap-4" },
-                        React.createElement("div", null,
-                            React.createElement("label", { className: "label-text" }, "Jumlah Pallet"),
-                            React.createElement("input", { type: "text", name: "pallet", className: "input-field w-32", value: formData.pallet, onChange: handleHeaderChange })
-                        )
-                    ),
-
-                    // Actions
-                    React.createElement("div", { className: "flex justify-end gap-3 pt-4 border-t items-center" },
-                        React.createElement("button", { type: "button", onClick: handlePreview, className: "inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" },
-                            React.createElement("i", { className: "fa-solid fa-eye mr-2 mt-0.5" }), " Cek Preview"
-                        ),
-                        React.createElement("button", { type: "submit", disabled: isSaving, className: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50" },
-                            isSaving ? "Menyimpan..." : "Simpan & Download PDF"
-                        )
-                    ),
-
-                    statusMsg && React.createElement("div", { className: `p-4 rounded-md ${statusMsg.includes('Gagal') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}` }, statusMsg)
-                ),
-
-                // Modals
-                showSettings && React.createElement(SettingsModal),
-                showPreview && React.createElement("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 preview-modal" },
-                    React.createElement("div", { className: "bg-white rounded-lg shadow-xl w-full max-w-5xl h-[90vh] flex flex-col" },
-                        React.createElement("div", { className: "bg-gray-100 px-4 py-3 border-b flex justify-between items-center" },
-                            React.createElement("h3", { className: "text-lg font-medium text-gray-900" }, "Preview PDF"),
-                            React.createElement("div", { className: "flex gap-2" },
-                                React.createElement("button", { onClick: () => { setShowPreview(false); setShowSettings(true); }, className: "text-sm px-3 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200" },
-                                    React.createElement("i", { className: "fa-solid fa-gear mr-1" }), "Atur Lagi"
-                                ),
-                                React.createElement("button", { onClick: () => setShowPreview(false), className: "text-gray-500 hover:text-gray-700 ml-2" },
-                                    React.createElement("i", { className: "fa-solid fa-times text-xl" })
-                                )
-                            )
-                        ),
-                        React.createElement("div", { className: "flex-grow bg-gray-500 p-4" },
-                            React.createElement("iframe", { src: previewUrl, className: "w-full h-full rounded shadow-lg border-0" })
-                        )
-                    )
-                )
-            );
-        };
-
-        // --- DEFINISI KOMPONEN LAIN (TIDAK BERUBAH) ---
-
-        // HALAMAN LOGIN UTAMA
+        // 1. HALAMAN LOGIN UTAMA
         const LoginScreen = ({ onLogin }) => {
             const [username, setUsername] = useState('');
             const [password, setPassword] = useState('');
@@ -784,8 +167,10 @@
                 // HARDCODED CREDENTIALS
                 if (username === 'admin' && password === 'admin123') {
                     onLogin('admin');
-                } else if (username === 'transporter' && password === 'transporter123') {
-                    onLogin('transporter');
+                } else if (username === 'user' && password === 'user123') {
+                    onLogin('user');
+                } else if (username === 'timbang' && password === 'timbang123') {
+                    onLogin('timbang');
                 } else {
                     setError('Username atau Password salah!');
                 }
@@ -825,17 +210,136 @@
                             className: "w-full bg-blue-700 text-white font-bold py-3 rounded-xl hover:bg-blue-800 transition-transform active:scale-95 shadow-lg shadow-blue-200"
                         }, "MASUK SISTEM"),
                         React.createElement("div", { className: "text-center mt-4 text-xs text-slate-400" },
-                           "Versi 1.2.0 - Secure Login"
+                           "Versi 1.3.1 - Secure Login"
                         )
                     )
                 )
             );
         };
 
-        // HALAMAN INSTRUKSI KERJA (PANDUAN)
+        // 2. LIVE TRACKING PAGE (UPDATED WITH MARQUEE)
+        const LiveTrackingPage = ({ user }) => {
+            const [transactions, setTransactions] = useState([]);
+
+            useEffect(() => {
+                if (!user) return;
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'));
+                const unsub = onSnapshot(q, s => {
+                    const data = s.docs.map(d => ({id: d.id, ...d.data()}));
+                    setTransactions(data.sort((a,b) => (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0)).slice(0, 5));
+                });
+                return () => unsub();
+            }, [user]);
+
+            return React.createElement("div", { className: "space-y-6" }, 
+                // Header & Stats
+                React.createElement("div", { className: "bg-white p-6 rounded-xl border shadow-sm" },
+                    React.createElement("div", { className: "flex justify-between items-center mb-6" },
+                        React.createElement("h2", { className: "text-xl font-bold flex items-center gap-2" },
+                            React.createElement(MapPin, { className: "text-red-500" }), " Live Tracking TMS"
+                        ),
+                        // TULISAN BERJALAN (MARQUEE)
+                        React.createElement("div", { className: "relative w-80 h-8 bg-red-100 rounded-full border border-red-200 overflow-hidden flex items-center px-4" },
+                            React.createElement("div", { className: "absolute inset-0 flex items-center" },
+                                React.createElement("span", { className: "animate-marquee text-xs font-bold text-red-600 uppercase tracking-wider" }, 
+                                    "⚠️ SYSTEM TERPUTUS DENGAN SERVER TRADING  ⚠️  MOHON HUBUNGI ADMIN JIKA TERDAPAT KENDALA DATA  ⚠️"
+                                )
+                            )
+                        )
+                    ),
+                    
+                    // GOOGLE MAPS EMBED
+                    React.createElement("div", { className: "aspect-video bg-slate-100 rounded-xl overflow-hidden border shadow-sm relative" },
+                        React.createElement("iframe", {
+                            src: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126920.24097834448!2d106.75947813639148!3d-6.229746487930822!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e945e34b9d%3A0x5371bf0fdad786a2!2sJakarta%2C%20Special%20Capital%20Region%20of%20Jakarta!5e0!3m2!1sen!2sid!4v1708500000000!5m2!1sen!2sid",
+                            width: "100%",
+                            height: "100%",
+                            style: { border: 0 },
+                            allowFullScreen: "",
+                            loading: "lazy",
+                            referrerPolicy: "no-referrer-when-downgrade"
+                        }),
+                        React.createElement("div", { className: "absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2" },
+                            React.createElement("div", { className: "w-2 h-2 bg-red-500 rounded-full animate-ping" }),
+                            "Realtime Traffic"
+                        )
+                    ),
+
+                    // Stats Grid
+                    React.createElement("div", { className: "mt-6 grid grid-cols-1 md:grid-cols-3 gap-4" },
+                        React.createElement("div", { className: "p-4 bg-blue-50 rounded-xl border border-blue-100" },
+                            React.createElement("div", { className: "flex items-center gap-2 mb-1" },
+                                React.createElement(Truck, { size: 16, className: "text-blue-600" }),
+                                React.createElement("h3", { className: "text-xs text-blue-600 font-bold uppercase tracking-wider" }, "Total Unit Jalan")
+                            ),
+                            React.createElement("p", { className: "text-2xl font-black text-slate-800" }, transactions.length > 0 ? transactions.length : "0")
+                        ),
+                        React.createElement("div", { className: "p-4 bg-green-50 rounded-xl border border-green-100" },
+                            React.createElement("div", { className: "flex items-center gap-2 mb-1" },
+                                React.createElement(CheckCircle, { size: 16, className: "text-green-600" }),
+                                React.createElement("h3", { className: "text-xs text-green-600 font-bold uppercase tracking-wider" }, "Terkirim (Hari Ini)")
+                            ),
+                            React.createElement("p", { className: "text-2xl font-black text-slate-800" }, "8")
+                        ),
+                        React.createElement("div", { className: "p-4 bg-orange-50 rounded-xl border border-orange-100" },
+                             React.createElement("div", { className: "flex items-center gap-2 mb-1" },
+                                React.createElement(Navigation, { size: 16, className: "text-orange-600" }),
+                                React.createElement("h3", { className: "text-xs text-orange-600 font-bold uppercase tracking-wider" }, "Sedang Transit")
+                            ),
+                            React.createElement("p", { className: "text-2xl font-black text-slate-800" }, "3")
+                        )
+                    )
+                ),
+
+                // Active List
+                React.createElement("div", { className: "bg-white p-6 rounded-xl border shadow-sm" },
+                    React.createElement("h3", { className: "font-bold mb-4 flex items-center gap-2" },
+                         React.createElement(Truck, { size: 18, className: "text-slate-500" }), "Status Pengiriman Aktif"
+                    ),
+                    React.createElement("div", { className: "space-y-3" },
+                        transactions.length === 0 ? 
+                        React.createElement("p", { className: "text-center text-slate-400 py-4 italic" }, "Tidak ada armada yang sedang berjalan.") :
+                        transactions.map((t, idx) => {
+                            const isCompleted = t.status === 'COMPLETED';
+                            return React.createElement("div", { key: t.id, className: "flex items-start gap-4 p-4 border rounded-lg hover:bg-slate-50 transition-colors" },
+                                React.createElement("div", { className: "w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0" },
+                                    React.createElement(Truck, { size: 20, className: "text-blue-600" })
+                                ),
+                                React.createElement("div", { className: "flex-1" },
+                                    React.createElement("div", { className: "flex justify-between items-start" },
+                                        React.createElement("h4", { className: "font-bold text-sm" }, t.no_sj),
+                                        React.createElement("span", { className: `text-[10px] font-bold px-2 py-0.5 rounded ${isCompleted ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}` }, isCompleted ? "SELESAI" : "OTW")
+                                    ),
+                                    React.createElement("p", { className: "text-xs text-slate-500 mt-1" }, 
+                                        React.createElement("span", { className: "font-bold" }, t.nopol), " • ", t.driver
+                                    ),
+                                    React.createElement("p", { className: "text-xs font-bold text-slate-700 mt-1" }, 
+                                        "Tujuan: ", t.customerName || "Customer Umum"
+                                    ),
+                                    React.createElement("div", { className: "mt-2 w-full bg-slate-200 rounded-full h-1.5" },
+                                        React.createElement("div", { className: `h-1.5 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-600'}`, style: { width: isCompleted ? '100%' : `${Math.floor(Math.random() * 80) + 10}%` } })
+                                    ),
+                                    // Footer with EPOD
+                                    React.createElement("div", { className: "flex justify-between items-center mt-2" },
+                                        React.createElement("div", { className: "text-[10px] text-slate-400" },
+                                            React.createElement("span", null, isCompleted ? "Tiba di Lokasi" : "Est. 2 Jam")
+                                        ),
+                                        React.createElement("div", { className: `flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border ${isCompleted ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-100 border-slate-200 text-slate-500'}` },
+                                            React.createElement(Receipt, { size: 10 }),
+                                            React.createElement("span", { className: "font-bold" }, isCompleted ? "EPOD: Diterima" : "EPOD: Pending")
+                                        )
+                                    )
+                                )
+                            );
+                        })
+                    )
+                )
+            );
+        };
+
+        // 3. INSTRUCTION PAGE
         const InstructionPage = () => {
             return React.createElement("div", { className: "space-y-6 pb-20 no-print" },
-                // Header
                 React.createElement("div", { className: "bg-white p-6 rounded-xl border shadow-sm" },
                     React.createElement("h2", { className: "text-xl font-bold mb-2 flex items-center gap-2" },
                         React.createElement(Info, { className: "text-blue-600" }), " Instruksi Kerja (SOP)"
@@ -844,8 +348,6 @@
                         "Panduan standar operasional untuk penggunaan aplikasi MyTrading."
                     )
                 ),
-
-                // 1. Master Produk
                 React.createElement("div", { className: "bg-white p-5 rounded-xl border shadow-sm" },
                     React.createElement("h3", { className: "font-bold text-md mb-3 text-slate-800 flex items-center gap-2" },
                         React.createElement(Package, { className: "text-blue-500", size: 18 }), " 1. Master Produk / Barang"
@@ -858,247 +360,386 @@
                         React.createElement("li", null, "Gunakan menu ini untuk mendaftarkan barang baru."),
                         React.createElement("li", null, "Input Nama Barang, Satuan, dan Keterangan.")
                     )
-                ),
-
-                // 2. Customer
-                React.createElement("div", { className: "bg-white p-5 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold text-md mb-3 text-slate-800 flex items-center gap-2" },
-                        React.createElement(Users, { className: "text-blue-500", size: 18 }), " 2. Menu Customer"
-                    ),
-                    React.createElement("img", {
-                        src: "https://lh3.googleusercontent.com/d/1-837eyrQbjLIwWcYYXFFEeFqynGbo4hO",
-                        className: "w-full rounded-lg border mb-3"
-                    }),
-                    React.createElement("ul", { className: "list-disc list-inside text-xs text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg" },
-                        React.createElement("li", null, "Input Nama Customer dan Alamat Lengkap."),
-                    )
-                ),
-
-                // 3. Armada
-                React.createElement("div", { className: "bg-white p-5 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold text-md mb-3 text-slate-800 flex items-center gap-2" },
-                        React.createElement(Truck, { className: "text-blue-500", size: 18 }), " 3. Armada"
-                    ),
-                    React.createElement("img", {
-                        src: "https://lh3.googleusercontent.com/d/1nxv2JuAXul-GP01dnk4NMSCJOi0Rdr6U",
-                        className: "w-full rounded-lg border mb-3"
-                    }),
-                     React.createElement("ul", { className: "list-disc list-inside text-xs text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg" },
-                        React.createElement("li", null, "Daftarkan Nopol & Driver baru di menu Armada."),
-                        React.createElement("li", null, "Isi No Tiket Timbangan & Qty Netto."),
-                    )
-                ),
-
-                // 4. Transaksi
-                React.createElement("div", { className: "bg-white p-5 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold text-md mb-3 text-slate-800 flex items-center gap-2" },
-                        React.createElement(ClipboardList, { className: "text-blue-500", size: 18 }), " 4. Menu Transaksi"
-                    ),
-                    React.createElement("img", {
-                        src: "https://lh3.googleusercontent.com/d/1pRVbVJeeqZDVfRp_QmCPl0w5bXkzdcw5",
-                        className: "w-full rounded-lg border mb-3"
-                    }),
-                      React.createElement("ul", { className: "list-disc list-inside text-xs text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg" },
-                        React.createElement("li", null, "Pilih Tanggal, Truk, Customer, dan Barang."),
-                        React.createElement("li", null, "Klik Preview & Cetak untuk mencetak Surat Jalan.")
-                    )
                 )
             );
         };
 
-        const RecapPage = ({ user }) => {
-            const [transactions, setTransactions] = useState([]);
-            const [filter, setFilter] = useState({ 
-                startDate: new Date().toISOString().split('T')[0], 
-                endDate: new Date().toISOString().split('T')[0] 
+        // 4. TRANSACTION FORM
+        const TransactionForm = ({ user, trucks }) => {
+            const [masterTransporters, setMasterTransporters] = useState([]);
+            const [masterTrucks, setMasterTrucks] = useState([]);
+            const [masterCustomers, setMasterCustomers] = useState([]);
+            const [masterItems, setMasterItems] = useState([]);
+            const [nextSjNumber, setNextSjNumber] = useState('0001');
+
+            const [formData, setFormData] = useState({
+                tujuan: '',
+                no_sj: '',
+                tanggal: new Date().toISOString().split('T')[0],
+                no_so: '',
+                transporter: '',
+                priceOA: 0,
+                driver: '',
+                tipe_truk: '',
+                no_truk: '',
+                pallet: '',
+                selectedTruckId: '',
+                selectedCustomerId: ''
             });
-            const [editValues, setEditValues] = useState({});
-            const [editStatusValues, setEditStatusValues] = useState({});
+
+            const [items, setItems] = useState([
+                { kode: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }
+            ]);
+
+            const [showSettings, setShowSettings] = useState(false);
+            const [showPreview, setShowPreview] = useState(false);
+            const [previewUrl, setPreviewUrl] = useState('');
+            const [statusMsg, setStatusMsg] = useState('');
+            const [isSaving, setIsSaving] = useState(false);
+
+            const [layoutConfig, setLayoutConfig] = useState({
+                pageSize: { w: 229, h: 162 }, 
+                fontSize: 10,
+                fontName: 'courier', 
+                globalOffset: { x: 5, y: 13 },
+                headerGap: 0,
+                header: {
+                    no_sj: { x: 160, y: 22 }, 
+                    tanggal: { x: 160, y: 26 },
+                    no_so: { x: 160, y: 32.7 },
+                    transporter: { x: 160, y: 36.7 },
+                    tipe_truk: { x: 160, y: 44 },
+                    no_truk: { x: 160, y: 48 },
+                    driver: { x: 160, y: 52 }
+                },
+                tujuan: { x: 20, y: 32, maxWidth: 80, lineHeight: 5 },
+                table: {
+                    startY: 68,     
+                    rowHeight: 6,    
+                    cols: {          
+                        kode: 12, nama: 42, uom: 95, qty_pesan: 110, qty_kirim: 130, berat: 150, total: 175
+                    }
+                },
+                footer: {
+                    pallet: { x: 90, y: 130 }
+                }
+            });
 
             useEffect(() => {
                 if (!user) return;
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'));
-                const unsub = onSnapshot(q, s => {
-                    const data = s.docs.map(d => ({id: d.id, ...d.data()}));
-                    setTransactions(data.sort((a,b) => new Date(b.date) - new Date(a.date)));
-                });
-                return () => unsub();
-            }, [user]);
+                const x = localStorage.getItem('sj_config_offset_x');
+                const y = localStorage.getItem('sj_config_offset_y');
+                const hGap = localStorage.getItem('sj_config_header_gap');
+                const fSize = localStorage.getItem('sj_config_font_size');
 
-            const filteredData = transactions.filter(t => {
-                return t.date >= filter.startDate && t.date <= filter.endDate;
-            });
-
-            const handleSaveActual = async (id) => {
-                const val = editValues[id];
-                if (val === undefined || val === '') return;
-                
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), {
-                        qtyActual: Number(val)
-                    });
-                    setEditValues(prev => {
-                        const next = {...prev};
-                        delete next[id];
-                        return next;
-                    });
-                    alert("Qty Actual berhasil disimpan!");
-                } catch (err) {
-                    console.error("Error saving actual qty:", err);
-                    alert("Gagal menyimpan data.");
-                }
-            };
-
-            const handleSaveStatus = async (id) => {
-                const val = editStatusValues[id];
-                if (val === undefined) return;
-
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), {
-                        validationStatus: val
-                    });
-                    setEditStatusValues(prev => {
-                        const next = {...prev};
-                        delete next[id];
-                        return next;
-                    });
-                    alert("Status Validasi berhasil disimpan!");
-                } catch (err) {
-                    console.error("Error saving status:", err);
-                    alert("Gagal menyimpan status.");
-                }
-            };
-
-            const downloadExcel = () => {
-                if(filteredData.length === 0) return alert("Tidak ada data untuk didownload");
-
-                const dataForExcel = filteredData.map(row => ({
-                    "Tanggal": row.date,
-                    "No Polisi": row.nopol,
-                    "Driver": row.driver,
-                    "No HP": row.noHp || '-',
-                    "Customer": row.customerName,
-                    "Alamat Customer": row.customerAddress || '',
-                    "Barang": row.itemName,
-                    "Qty Kirim": Number(row.qty), 
-                    "Qty Actual": row.qtyActual ? Number(row.qtyActual) : '-',
-                    "Validasi": row.validationStatus || 'Pending',
-                    "Satuan": row.uom,
-                    "Status Jalan": row.status === 'COMPLETED' ? 'Selesai' : 'Dalam Perjalanan',
-                    "Keterangan": row.notes || ''
+                setLayoutConfig(prev => ({
+                    ...prev,
+                    globalOffset: {
+                        x: x !== null ? parseFloat(x) : prev.globalOffset.x,
+                        y: y !== null ? parseFloat(y) : prev.globalOffset.y
+                    },
+                    headerGap: hGap !== null ? parseFloat(hGap) : prev.headerGap,
+                    fontSize: fSize !== null ? parseFloat(fSize) : prev.fontSize
                 }));
 
-                const ws = window.XLSX.utils.json_to_sheet(dataForExcel);
-                const wscols = [
-                    {wch: 12}, {wch: 15}, {wch: 20}, {wch: 15}, 
-                    {wch: 25}, {wch: 40}, {wch: 20}, {wch: 10}, 
-                    {wch: 10}, {wch: 10}, {wch: 15}, {wch: 30}
-                ];
-                ws['!cols'] = wscols;
-                const wb = window.XLSX.utils.book_new();
-                window.XLSX.utils.book_append_sheet(wb, ws, "Rekap Transaksi");
-                window.XLSX.writeFile(wb, `Rekap_Transaksi_${filter.startDate}_sd_${filter.endDate}.xlsx`);
+                const unsubTrans = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), s => 
+                    setMasterTransporters(s.docs.map(d => ({id: d.id, ...d.data()})))
+                );
+                const unsubTrucks = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'trucks'), s => 
+                    setMasterTrucks(s.docs.map(d => ({id: d.id, ...d.data()})))
+                );
+                const unsubCust = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), s => 
+                    setMasterCustomers(s.docs.map(d => ({id: d.id, ...d.data()})))
+                );
+                const unsubItems = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'items'), s => 
+                    setMasterItems(s.docs.map(d => ({id: d.id, ...d.data()})))
+                );
+                const unsubTransacts = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), s => {
+                    const count = s.size + 1;
+                    setNextSjNumber(String(count).padStart(4, '0'));
+                });
+
+                return () => {
+                    unsubTrans(); unsubTrucks(); unsubCust(); unsubItems(); unsubTransacts();
+                };
+            }, [user]);
+
+            useEffect(() => {
+                if(nextSjNumber) {
+                    const d = new Date();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yy = String(d.getFullYear()).slice(-2);
+                    setFormData(prev => ({
+                        ...prev,
+                        no_sj: `SDO-MKI/${mm}/${yy}/${nextSjNumber}`
+                    }));
+                }
+            }, [nextSjNumber]);
+
+            const handleHeaderChange = (e) => {
+                setFormData({ ...formData, [e.target.name]: e.target.value });
             };
 
-            return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border shadow-sm" },
-                    React.createElement("h2", { className: "font-bold mb-4 flex gap-2 items-center" }, 
-                        React.createElement(FileSpreadsheet, { className: "text-green-600" }), " Rekapitulasi Data & Validasi"
-                    ),
-                    
-                    React.createElement("div", { className: "flex flex-col md:flex-row gap-4 items-end mb-6" },
-                        React.createElement("div", { className: "w-full" },
-                            React.createElement("label", { className: "text-xs font-bold text-slate-500" }, "DARI TANGGAL"),
-                            React.createElement("input", { type: "date", className: "w-full p-2 border rounded-lg", value: filter.startDate, onChange: e => setFilter({...filter, startDate: e.target.value}) })
+            const handleTransporterSelect = (e) => {
+                const selectedName = e.target.value;
+                const selectedT = masterTransporters.find(t => t.name === selectedName);
+                setFormData(prev => ({
+                    ...prev,
+                    transporter: selectedName,
+                    priceOA: selectedT ? (selectedT.priceOA || 0) : 0
+                }));
+            };
+
+            const handleTruckSelect = (e) => {
+                const truckId = e.target.value;
+                const truck = masterTrucks.find(t => t.id === truckId);
+                
+                if (truck) {
+                    setFormData(prev => ({
+                        ...prev,
+                        selectedTruckId: truckId,
+                        driver: truck.driver || '',
+                        tipe_truk: truck.type || '',
+                        no_truk: truck.nopol || '',
+                        tujuan: prev.tujuan.split('\nNo Tiket:')[0] + (truck.ticketNumber ? `\nNo Tiket: ${truck.ticketNumber}` : '')
+                    }));
+                    const netWeight = parseFloat(truck.netWeight) || 0;
+                    const ton = netWeight / 1000;
+                    setItems(prevItems => prevItems.map(item => ({
+                        ...item,
+                        qty_kirim: netWeight,
+                        total_berat: ton
+                    })));
+                } else {
+                    setFormData(prev => ({ ...prev, selectedTruckId: '', driver: '', tipe_truk: '', no_truk: '' }));
+                }
+            };
+
+            const handleCustomerSelect = (e) => {
+                const custId = e.target.value;
+                const cust = masterCustomers.find(c => c.id === custId);
+                const currentTruck = masterTrucks.find(t => t.id === formData.selectedTruckId);
+                if (cust) {
+                    const ticketInfo = currentTruck?.ticketNumber ? `\nNo Tiket: ${currentTruck.ticketNumber}` : '';
+                    setFormData(prev => ({
+                        ...prev,
+                        selectedCustomerId: custId,
+                        tujuan: `${cust.name}\n${cust.address}${ticketInfo}`
+                    }));
+                }
+            };
+
+            const handleItemSelect = (index, e) => {
+                const itemId = e.target.value;
+                const itemData = masterItems.find(i => i.id === itemId);
+                const newItems = [...items];
+                if (itemData) {
+                    newItems[index].kode = itemId;
+                    newItems[index].nama = itemData.name;
+                    newItems[index].uom = itemData.uom;
+                    const currentTruck = masterTrucks.find(t => t.id === formData.selectedTruckId);
+                    const netWeight = currentTruck ? (parseFloat(currentTruck.netWeight) || 0) : 0;
+                    newItems[index].qty_kirim = netWeight;
+                    newItems[index].total_berat = netWeight / 1000;
+                    if(itemData.notes) setFormData(prev => ({ ...prev, no_so: itemData.notes }));
+                }
+                setItems(newItems);
+            };
+
+            const handleItemChange = (index, field, value) => {
+                const newItems = [...items];
+                newItems[index][field] = value;
+                if (field === 'qty_kirim') {
+                    const qty = parseFloat(value) || 0;
+                    newItems[index].total_berat = qty / 1000;
+                }
+                setItems(newItems);
+            };
+
+            const addItem = () => setItems([...items, { kode: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }]);
+            const removeItem = (index) => { if (items.length > 1) setItems(items.filter((_, i) => i !== index)); };
+
+            const createPDFObject = (data) => {
+                const { jsPDF } = window.jspdf;
+                const cfg = layoutConfig;
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [cfg.pageSize.w, cfg.pageSize.h] });
+                doc.setFont(cfg.fontName, 'normal');
+                doc.setFontSize(cfg.fontSize);
+                const getX = (val) => val + cfg.globalOffset.x;
+                const getY = (val) => val + cfg.globalOffset.y;
+                const hGap = cfg.headerGap || 0;
+                const txt = (str, x, y, lineIndex = 0) => { if(str) doc.text(String(str).toUpperCase(), getX(x), getY(y) + (lineIndex * hGap)); };
+                
+                const h = data.header;
+                const hc = cfg.header;
+                txt(h.no_sj, hc.no_sj.x, hc.no_sj.y, 0);
+                let tgl = h.tanggal;
+                if (tgl) { const d = new Date(tgl); tgl = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`; }
+                txt(tgl, hc.tanggal.x, hc.tanggal.y, 1);
+                txt(h.no_so, hc.no_so.x, hc.no_so.y, 2);
+                txt(h.transporter, hc.transporter.x, hc.transporter.y, 3);
+                txt(h.tipe_truk, hc.tipe_truk.x, hc.tipe_truk.y, 4);
+                txt(h.no_truk, hc.no_truk.x, hc.no_truk.y, 5);
+                txt(h.driver, hc.driver.x, hc.driver.y, 6);
+                
+                const tc = cfg.tujuan;
+                if (h.tujuan) {
+                    const splitTujuan = doc.splitTextToSize(h.tujuan.toUpperCase(), tc.maxWidth);
+                    doc.text(splitTujuan, getX(tc.x), getY(tc.y));
+                }
+
+                let currentY = cfg.table.startY;
+                const tableC = cfg.table;
+                data.items.forEach(item => {
+                    const txtTable = (str, x, y) => { if(str) doc.text(String(str).toUpperCase(), getX(x), getY(y)); };
+                    txtTable(item.kode, tableC.cols.kode, currentY);
+                    txtTable(item.nama, tableC.cols.nama, currentY);
+                    txtTable(item.uom, tableC.cols.uom, currentY);
+                    txtTable(item.qty_pesan, tableC.cols.qty_pesan, currentY);
+                    txtTable(item.qty_kirim, tableC.cols.qty_kirim, currentY);
+                    txtTable(item.berat, tableC.cols.berat, currentY);
+                    txtTable(item.total_berat, tableC.cols.total, currentY);
+                    currentY += tableC.rowHeight;
+                });
+                if (h.pallet) {
+                    const txtFooter = (str, x, y) => { if(str) doc.text(String(str).toUpperCase(), getX(x), getY(y)); };
+                    txtFooter(h.pallet, cfg.footer.pallet.x, cfg.footer.pallet.y);
+                }
+                return doc;
+            };
+
+            const handlePreview = () => {
+                if(!formData.no_sj) { alert('Mohon isi No. Surat Jalan (minimal dummy) untuk preview'); return; }
+                const doc = createPDFObject({ header: formData, items: items.filter(i => i.nama) });
+                setPreviewUrl(doc.output('datauristring'));
+                setShowPreview(true);
+            };
+
+            const handleSave = async (e) => {
+                e.preventDefault();
+                setIsSaving(true);
+                try {
+                    const dataToSave = { ...formData, items: items.filter(i => i.nama), timestamp: serverTimestamp(), createdBy: user.uid, status: 'COMPLETED' };
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'), dataToSave);
+                    const doc = createPDFObject({ header: formData, items: items.filter(i => i.nama) });
+                    doc.save(`SJ_${formData.no_sj || 'Draft'}.pdf`);
+                    setStatusMsg('Data Berhasil Disimpan & PDF Didownload!');
+                    setFormData(prev => ({ ...prev, tujuan: '', selectedCustomerId: '', no_so: '', priceOA: 0 }));
+                } catch (error) {
+                    console.error("Error saving:", error);
+                    setStatusMsg('Gagal menyimpan data: ' + error.message);
+                }
+                setIsSaving(false);
+            };
+
+            // Settings Modal (inline)
+            const SettingsModal = () => {
+                const [localCfg, setLocalCfg] = useState(layoutConfig);
+                const updateVal = (key, val) => setLocalCfg(prev => {
+                    const next = { ...prev };
+                    if (key === 'offsetX') next.globalOffset.x = parseFloat(val);
+                    if (key === 'offsetY') next.globalOffset.y = parseFloat(val);
+                    if (key === 'headerGap') next.headerGap = parseFloat(val);
+                    if (key === 'fontSize') next.fontSize = parseFloat(val);
+                    return next;
+                });
+                const adjust = (key, delta) => {
+                    let current = 0;
+                    if (key === 'offsetX') current = localCfg.globalOffset.x;
+                    if (key === 'offsetY') current = localCfg.globalOffset.y;
+                    if (key === 'headerGap') current = localCfg.headerGap;
+                    updateVal(key, (current + delta).toFixed(1));
+                };
+
+                return React.createElement("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 preview-modal" },
+                    React.createElement("div", { className: "bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden" },
+                        React.createElement("div", { className: "flex justify-between items-center p-4 border-b" }, React.createElement("h3", { className: "text-lg font-medium" }, "Pengaturan Kertas"), React.createElement("button", { onClick: () => setShowSettings(false), className: "text-gray-400 hover:text-gray-500" }, React.createElement(X, { size: 20 }))),
+                        React.createElement("div", { className: "p-4 space-y-4 bg-gray-50" },
+                            React.createElement("div", null, React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Geser Horizontal (X) - mm"), React.createElement("div", { className: "flex items-center mt-1" }, React.createElement("button", { onClick: () => adjust('offsetX', -1), className: "p-2 bg-gray-200 rounded-l hover:bg-gray-300" }, "-"), React.createElement("input", { type: "number", className: "block w-full text-center border-gray-300 h-9 border-t border-b", value: localCfg.globalOffset.x, onChange: e => updateVal('offsetX', e.target.value) }), React.createElement("button", { onClick: () => adjust('offsetX', 1), className: "p-2 bg-gray-200 rounded-r hover:bg-gray-300" }, "+"))),
+                            React.createElement("div", null, React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Geser Vertikal (Y) - mm"), React.createElement("div", { className: "flex items-center mt-1" }, React.createElement("button", { onClick: () => adjust('offsetY', -1), className: "p-2 bg-gray-200 rounded-l hover:bg-gray-300" }, "-"), React.createElement("input", { type: "number", className: "block w-full text-center border-gray-300 h-9 border-t border-b", value: localCfg.globalOffset.y, onChange: e => updateVal('offsetY', e.target.value) }), React.createElement("button", { onClick: () => adjust('offsetY', 1), className: "p-2 bg-gray-200 rounded-r hover:bg-gray-300" }, "+"))),
+                            React.createElement("div", null, React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Jarak Antar Baris Header - mm"), React.createElement("div", { className: "flex items-center mt-1" }, React.createElement("button", { onClick: () => adjust('headerGap', -0.5), className: "p-2 bg-gray-200 rounded-l hover:bg-gray-300" }, "-"), React.createElement("input", { type: "number", className: "block w-full text-center border-gray-300 h-9 border-t border-b", value: localCfg.headerGap, onChange: e => updateVal('headerGap', e.target.value) }), React.createElement("button", { onClick: () => adjust('headerGap', 0.5), className: "p-2 bg-gray-200 rounded-r hover:bg-gray-300" }, "+"))),
+                            React.createElement("div", null, React.createElement("label", { className: "block text-sm font-bold text-gray-700" }, "Ukuran Font (pt)"), React.createElement("input", { type: "number", className: "input-field mt-1", value: localCfg.fontSize, onChange: e => updateVal('fontSize', e.target.value) }))
                         ),
-                        React.createElement("div", { className: "w-full" },
-                            React.createElement("label", { className: "text-xs font-bold text-slate-500" }, "SAMPAI TANGGAL"),
-                            React.createElement("input", { type: "date", className: "w-full p-2 border rounded-lg", value: filter.endDate, onChange: e => setFilter({...filter, endDate: e.target.value}) })
-                        ),
-                        React.createElement("button", { onClick: downloadExcel, className: "w-full md:w-auto bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 flex gap-2 items-center justify-center transition-all shadow-md active:scale-95" }, 
-                            React.createElement(Download, { size: 18 }), "Download .XLSX"
-                        )
-                    ),
-
-                    React.createElement("div", { className: "overflow-x-auto border rounded-lg" },
-                        React.createElement("table", { className: "w-full text-xs text-left whitespace-nowrap" },
-                            React.createElement("thead", { className: "bg-slate-100 text-slate-600 uppercase font-bold" },
-                                React.createElement("tr", null,
-                                    React.createElement("th", { className: "p-3 border-b" }, "Tanggal"),
-                                    React.createElement("th", { className: "p-3 border-b" }, "Nopol"),
-                                    React.createElement("th", { className: "p-3 border-b" }, "Driver"),
-                                    React.createElement("th", { className: "p-3 border-b" }, "Customer"),
-                                    React.createElement("th", { className: "p-3 border-b" }, "Barang"),
-                                    React.createElement("th", { className: "p-3 border-b text-right" }, "Qty Kirim"),
-                                    React.createElement("th", { className: "p-3 border-b text-center bg-yellow-50" }, "Qty Actual"),
-                                    React.createElement("th", { className: "p-3 border-b text-center bg-blue-50" }, "Validasi"), 
-                                    React.createElement("th", { className: "p-3 border-b" }, "Status Jalan"),
-                                    React.createElement("th", { className: "p-3 border-b" }, "Keterangan")
-                                )
-                            ),
-                            React.createElement("tbody", null,
-                                filteredData.length === 0 ? 
-                                React.createElement("tr", null, React.createElement("td", { colSpan: 10, className: "p-8 text-center text-slate-400" }, "Tidak ada data pada periode ini.")) :
-                                filteredData.map(row => 
-                                    React.createElement("tr", { key: row.id, className: "hover:bg-slate-50 border-b last:border-0" },
-                                        React.createElement("td", { className: "p-3" }, row.date),
-                                        React.createElement("td", { className: "p-3 font-bold" }, row.nopol),
-                                        React.createElement("td", { className: "p-3" }, row.driver),
-                                        React.createElement("td", { className: "p-3" }, row.customerName),
-                                        React.createElement("td", { className: "p-3" }, row.itemName),
-                                        React.createElement("td", { className: "p-3 text-right font-bold" }, `${row.qty} ${row.uom}`),
-                                        
-                                        React.createElement("td", { className: "p-2 bg-yellow-50" },
-                                            React.createElement("div", { className: "flex items-center justify-center gap-1" },
-                                                React.createElement("input", {
-                                                    type: "number",
-                                                    placeholder: row.qtyActual || "0",
-                                                    className: "w-16 p-1 border rounded text-right font-mono focus:border-blue-500 outline-none text-xs",
-                                                    value: editValues[row.id] !== undefined ? editValues[row.id] : (row.qtyActual || ''),
-                                                    onChange: (e) => setEditValues({...editValues, [row.id]: e.target.value})
-                                                }),
-                                                editValues[row.id] !== undefined && React.createElement("button", {
-                                                    onClick: () => handleSaveActual(row.id),
-                                                    className: "p-1 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm",
-                                                    title: "Simpan Qty"
-                                                }, React.createElement(Save, { size: 14 }))
-                                            )
-                                        ),
-
-                                        React.createElement("td", { className: "p-2 bg-blue-50 text-center" },
-                                            React.createElement("div", { className: "flex items-center justify-center gap-1" },
-                                                React.createElement("select", {
-                                                    className: `p-1 border rounded text-xs outline-none cursor-pointer ${
-                                                        (editStatusValues[row.id] || row.validationStatus) === 'Reject' ? 'text-red-600 font-bold bg-red-50' : 
-                                                        (editStatusValues[row.id] || row.validationStatus) === 'Acc' ? 'text-green-600 font-bold bg-green-50' : 'text-slate-500'
-                                                    }`,
-                                                    value: editStatusValues[row.id] !== undefined ? editStatusValues[row.id] : (row.validationStatus || ''),
-                                                    onChange: (e) => setEditStatusValues({...editStatusValues, [row.id]: e.target.value})
-                                                },
-                                                    React.createElement("option", { value: "" }, "- Pilih -"),
-                                                    React.createElement("option", { value: "Acc" }, "Acc"),
-                                                    React.createElement("option", { value: "Reject" }, "Reject")
-                                                ),
-                                                editStatusValues[row.id] !== undefined && React.createElement("button", {
-                                                    onClick: () => handleSaveStatus(row.id),
-                                                    className: "p-1 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-sm",
-                                                    title: "Simpan Status"
-                                                }, React.createElement(Save, { size: 14 }))
-                                            )
-                                        ),
-
-                                        React.createElement("td", { className: "p-3" }, 
-                                            React.createElement("span", { className: `px-2 py-1 rounded text-[10px] font-bold ${row.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}` }, 
-                                                row.status === 'COMPLETED' ? 'Selesai' : 'Jalan'
-                                            )
-                                        ),
-                                        React.createElement("td", { className: "p-3 italic text-slate-500 max-w-xs truncate" }, row.notes || '-')
-                                    )
-                                )
-                            )
+                        React.createElement("div", { className: "p-4 flex flex-col gap-2" },
+                            React.createElement("button", { onClick: () => { saveSettings(localCfg); setShowSettings(false); setTimeout(handlePreview, 300); }, className: "w-full px-4 py-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 flex justify-center items-center gap-2" }, React.createElement("i", { className: "fa-solid fa-check-double" }), "Simpan & Lihat Preview"),
+                            React.createElement("button", { onClick: () => { saveSettings(localCfg); setShowSettings(false); }, className: "w-full px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 font-medium" }, "Simpan Saja")
                         )
                     )
-                )
+                );
+            };
+
+            return React.createElement("div", { className: "max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden relative no-print" },
+                React.createElement("div", { className: "bg-indigo-600 px-6 py-4 flex justify-between items-center" },
+                    React.createElement("div", null, React.createElement("h2", { className: "text-xl font-bold text-white" }, "Input Surat Jalan MKI"), React.createElement("p", { className: "text-indigo-100 text-sm" }, "Setting Printer: Envelope C5 (229x162mm)")),
+                    React.createElement("div", { className: "flex items-center gap-5" },
+                        React.createElement("button", { onClick: handlePreview, className: "text-indigo-200 hover:text-white transition flex flex-col items-center group", title: "Preview PDF" }, React.createElement("i", { className: "fa-solid fa-eye text-xl mb-1 group-hover:scale-110 transition-transform" }), React.createElement("span", { className: "text-[10px] font-medium uppercase tracking-wider" }, "Preview")),
+                        React.createElement("div", { className: "h-8 w-px bg-indigo-500" }),
+                        React.createElement("button", { onClick: () => setShowSettings(true), className: "text-indigo-200 hover:text-white transition flex flex-col items-center group", title: "Pengaturan Kertas" }, React.createElement("i", { className: "fa-solid fa-gear text-xl mb-1 group-hover:rotate-45 transition-transform duration-300" }), React.createElement("span", { className: "text-[10px] font-medium uppercase tracking-wider" }, "Setting"))
+                    )
+                ),
+                React.createElement("form", { onSubmit: handleSave, className: "p-6 space-y-6" },
+                    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
+                        React.createElement("div", { className: "space-y-4" },
+                            React.createElement("div", null,
+                                React.createElement("label", { className: "label-text" }, "Customer / Tujuan"),
+                                React.createElement("select", { className: "input-field mb-2", value: formData.selectedCustomerId, onChange: handleCustomerSelect },
+                                    React.createElement("option", { value: "" }, "- Pilih Customer -"),
+                                    masterCustomers.map(c => React.createElement("option", { key: c.id, value: c.id }, c.name))
+                                ),
+                                React.createElement("textarea", { name: "tujuan", required: true, className: "input-field h-24", placeholder: "Detail Alamat...", value: formData.tujuan, onChange: handleHeaderChange })
+                            )
+                        ),
+                        React.createElement("div", { className: "space-y-3 bg-gray-50 p-4 rounded-md border" },
+                            React.createElement("div", { className: "grid grid-cols-2 gap-2" },
+                                React.createElement("div", null, React.createElement("label", { className: "label-text" }, "No. Surat Jalan"), React.createElement("input", { type: "text", name: "no_sj", required: true, className: "input-field bg-gray-100", value: formData.no_sj, readOnly: true })),
+                                React.createElement("div", null, React.createElement("label", { className: "label-text" }, "Tanggal"), React.createElement("input", { type: "date", name: "tanggal", required: true, className: "input-field", value: formData.tanggal, onChange: handleHeaderChange }))
+                            ),
+                            React.createElement("div", null, React.createElement("label", { className: "label-text" }, "No. SO"), React.createElement("input", { type: "text", name: "no_so", className: "input-field bg-gray-50", value: formData.no_so, onChange: handleHeaderChange, placeholder: "Auto from Item" })),
+                            React.createElement("div", { className: "grid grid-cols-2 gap-2" },
+                                React.createElement("div", null, React.createElement("label", { className: "label-text" }, "Transporter"), React.createElement("select", { name: "transporter", className: "input-field", value: formData.transporter, onChange: handleTransporterSelect }, React.createElement("option", { value: "" }, "- Pilih -"), masterTransporters.map(t => React.createElement("option", { key: t.id, value: t.name }, t.name)))),
+                                React.createElement("div", null, React.createElement("label", { className: "label-text" }, "Armada"), React.createElement("select", { className: "input-field", value: formData.selectedTruckId, onChange: handleTruckSelect }, React.createElement("option", { value: "" }, "- Pilih Nopol -"), masterTrucks.map(t => React.createElement("option", { key: t.id, value: t.id }, t.nopol))))
+                            ),
+                            React.createElement("div", { className: "grid grid-cols-3 gap-2" },
+                                React.createElement("div", null, React.createElement("label", { className: "label-text text-xs" }, "Driver"), React.createElement("input", { type: "text", name: "driver", className: "input-field bg-gray-100", value: formData.driver, readOnly: true })),
+                                React.createElement("div", null, React.createElement("label", { className: "label-text text-xs" }, "Tipe"), React.createElement("input", { type: "text", name: "tipe_truk", className: "input-field bg-gray-100", value: formData.tipe_truk, readOnly: true })),
+                                React.createElement("div", null, React.createElement("label", { className: "label-text text-xs" }, "Nopol"), React.createElement("input", { type: "text", name: "no_truk", className: "input-field bg-gray-100", value: formData.no_truk, readOnly: true }))
+                            )
+                        )
+                    ),
+                    React.createElement("div", null,
+                        React.createElement("h3", { className: "text-lg font-medium text-gray-900 border-b pb-2 mb-3" }, "Daftar Barang"),
+                        React.createElement("div", { className: "overflow-x-auto" },
+                            React.createElement("table", { className: "min-w-full divide-y divide-gray-200" },
+                                React.createElement("thead", { className: "bg-gray-50" }, React.createElement("tr", null, ["Nama Item", "UoM", "Qty Pesan", "Qty Kirim", "Berat", "Total", ""].map((h, i) => React.createElement("th", { key: i, className: `px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase ${h === "Nama Item" ? "w-1/3" : ""}` }, h)))),
+                                React.createElement("tbody", { className: "bg-white divide-y divide-gray-200" }, items.map((item, idx) => 
+                                    React.createElement("tr", { key: idx },
+                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("select", { className: "input-field text-xs", value: item.kode, onChange: (e) => handleItemSelect(idx, e) }, React.createElement("option", { value: "" }, "-"), masterItems.map(i => React.createElement("option", { key: i.id, value: i.id }, i.name)))),
+                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "text", className: "input-field text-xs bg-gray-50", value: item.uom, readOnly: true })),
+                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs", value: item.qty_pesan, onChange: e => handleItemChange(idx, 'qty_pesan', e.target.value) })),
+                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs bg-yellow-50", value: item.qty_kirim, onChange: e => handleItemChange(idx, 'qty_kirim', e.target.value) })),
+                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs", step: "0.01", value: item.berat, onChange: e => handleItemChange(idx, 'berat', e.target.value) })),
+                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs bg-gray-50", step: "0.001", value: item.total_berat, readOnly: true })),
+                                        React.createElement("td", { className: "px-2 py-1 text-center" }, React.createElement("button", { type: "button", onClick: () => removeItem(idx), className: "text-red-600 hover:text-red-900 font-bold" }, "X"))
+                                    )
+                                ))
+                            )
+                        ),
+                        React.createElement("button", { type: "button", onClick: addItem, className: "mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200" }, "+ Tambah Baris")
+                    ),
+                    React.createElement("div", { className: "grid grid-cols-2 gap-4" }, React.createElement("div", null, React.createElement("label", { className: "label-text" }, "Jumlah Pallet"), React.createElement("input", { type: "text", name: "pallet", className: "input-field w-32", value: formData.pallet, onChange: handleHeaderChange }))),
+                    React.createElement("div", { className: "flex justify-end gap-3 pt-4 border-t items-center" },
+                        React.createElement("button", { type: "button", onClick: handlePreview, className: "inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" }, "Cek Preview"),
+                        React.createElement("button", { type: "submit", disabled: isSaving, className: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50" }, isSaving ? "Menyimpan..." : "Simpan & PDF")
+                    ),
+                    statusMsg && React.createElement("div", { className: `p-4 rounded-md ${statusMsg.includes('Gagal') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}` }, statusMsg)
+                ),
+                showPreview && React.createElement("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 preview-modal" },
+                    React.createElement("div", { className: "bg-white rounded-lg shadow-xl w-full max-w-5xl h-[90vh] flex flex-col" },
+                        React.createElement("div", { className: "bg-gray-100 px-4 py-3 border-b flex justify-between items-center" }, React.createElement("h3", { className: "text-lg font-medium text-gray-900" }, "Preview PDF"), React.createElement("button", { onClick: () => setShowPreview(false), className: "text-gray-500" }, "Close")),
+                        React.createElement("div", { className: "flex-grow bg-gray-500 p-4" }, React.createElement("iframe", { src: previewUrl, className: "w-full h-full rounded shadow-lg border-0" }))
+                    )
+                ),
+                showSettings && React.createElement(SettingsModal)
             );
         };
 
@@ -1109,240 +750,49 @@
                 const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'transactions')), s => {
                     const data = s.docs.map(d => ({id: d.id, ...d.data()}));
                     setTransactions(data.sort((a,b) => (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0)));
-                }, (err) => console.error(err));
+                });
                 return () => unsub();
             }, [user]);
-
-            const handleFinish = async (id) => {
-                if(!confirm("Selesaikan transaksi ini? Armada akan kembali tersedia.")) return;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { status: 'COMPLETED', completedAt: serverTimestamp() });
-            };
-
-            const handleDelete = async (id) => {
-                const password = prompt("Masukkan Password Admin untuk Hapus Transaksi:");
-                if (password !== 'admin123') {
-                    alert("Password Salah! Akses ditolak.");
-                    return;
-                }
-
-                if(!confirm("PERINGATAN: Data transaksi akan dihapus permanen dan tidak bisa dikembalikan. Lanjutkan?")) return;
-                
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id));
-                } catch (err) {
-                    console.error("Gagal menghapus:", err);
-                    alert("Gagal menghapus data.");
-                }
-            };
-
+            const handleFinish = async (id) => { if(!confirm("Selesaikan transaksi?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { status: 'COMPLETED' }); };
+            const handleDelete = async (id) => { if(prompt("Password Admin:") !== 'admin123') return alert("Salah"); if(!confirm("Hapus permanen?")) return; await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id)); };
             return React.createElement("div", { className: "space-y-3 no-print" },
-                React.createElement("h2", { className: "font-bold text-lg flex gap-2 items-center" }, React.createElement(History, { className: "text-blue-500" }), " Log Perjalanan / Transaksi"),
-                transactions.length === 0 ? 
-                    React.createElement("p", {className: "text-center text-slate-400 py-10"}, "Belum ada riwayat transaksi.") :
-                    transactions.map(t => React.createElement("div", { key: t.id, className: `bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center ${t.status === 'ACTIVE' ? 'border-l-4 border-l-orange-500' : 'opacity-60'}` },
-                        React.createElement("div", null,
-                            React.createElement("p", { className: "font-black text-lg" }, t.nopol),
-                            React.createElement("p", { className: "text-sm font-bold text-slate-600" }, t.customerName),
-                            t.items && t.items.length > 0 && React.createElement("div", { className: "text-xs text-blue-600" }, 
-                                t.items.map((i, idx) => React.createElement("span", { key: idx }, `${i.nama} (${i.qty_kirim} ${i.uom})${idx < t.items.length-1 ? ', ' : ''}`))
-                            )
-                        ),
-                        React.createElement("div", { className: "flex items-center gap-2" },
-                            t.status === 'ACTIVE' && React.createElement("button", { onClick: () => handleFinish(t.id), className: "bg-orange-500 text-white text-xs px-4 py-2 rounded-lg font-bold hover:bg-orange-600 transition-colors" }, "SELESAI"),
-                            React.createElement("button", { onClick: () => handleDelete(t.id), className: "p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors", title: "Hapus Permanen" }, 
-                                React.createElement(Trash2, { size: 18 })
-                            )
-                        )
-                    ))
+                React.createElement("h2", { className: "font-bold text-lg" }, "Log Transaksi"),
+                transactions.length === 0 ? React.createElement("p", {className: "text-center text-slate-400 py-10"}, "Belum ada riwayat.") : transactions.map(t => 
+                    React.createElement("div", { key: t.id, className: "bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center" },
+                        React.createElement("div", null, React.createElement("p", { className: "font-black" }, t.nopol), React.createElement("p", { className: "text-sm" }, t.customerName), React.createElement("p", { className: "text-xs text-blue-600" }, `${t.itemName} (${t.qty} ${t.uom})`)),
+                        React.createElement("div", { className: "flex gap-2" }, t.status === 'ACTIVE' && React.createElement("button", { onClick: () => handleFinish(t.id), className: "bg-orange-500 text-white px-3 py-1 rounded" }, "SELESAI"), React.createElement("button", { onClick: () => handleDelete(t.id), className: "text-red-400" }, React.createElement(Trash2, { size: 18 })))
+                    )
+                )
             );
         };
 
         const MasterCustomerForm = ({ user }) => {
-            const [formData, setFormData] = useState({ name: '', address: '' });
+            const [formData, setFormData] = useState({ name: '', address: '', district: '' });
             const [customers, setCustomers] = useState([]);
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
-
-            useEffect(() => {
-                if (!user) return;
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'customers'));
-                const unsub = onSnapshot(q, s => setCustomers(s.docs.map(d => ({id: d.id, ...d.data()}))));
-                return () => unsub();
-            }, [user]);
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), { ...formData, createdAt: serverTimestamp() });
-                setFormData({ name: '', address: '' });
-            };
-
-            const startEdit = (c) => {
-                setEditingId(c.id);
-                setEditData(c);
-            };
-
-            const saveEdit = async () => {
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingId), {
-                        name: editData.name,
-                        address: editData.address
-                    });
-                    setEditingId(null);
-                } catch (err) {
-                    console.error("Gagal update customer:", err);
-                    alert("Gagal update data");
-                }
-            };
-
-            const deleteCustomer = async (id) => {
-                if(confirm("Hapus customer ini?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', id));
-                }
-            };
-
+            useEffect(() => { if (!user) return; return onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'customers')), s => setCustomers(s.docs.map(d => ({id: d.id, ...d.data()})))); }, [user]);
+            const handleSubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), { ...formData, createdAt: serverTimestamp() }); setFormData({ name: '', address: '', district: '' }); };
+            const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingId), { name: editData.name, address: editData.address, district: editData.district }); setEditingId(null); };
+            const deleteCustomer = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', id)); };
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border" },
-                    React.createElement("h2", { className: "font-bold mb-4 flex gap-2 items-center" }, React.createElement(Users, { className: "text-blue-500" }), " Data Customer"),
-                    React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" },
-                        React.createElement("input", { required: true, placeholder: "Nama Perusahaan / Toko", className: "w-full p-2 border rounded-lg", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }),
-                        React.createElement("textarea", { placeholder: "Alamat Lengkap", className: "w-full p-2 border rounded-lg", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }),
-                        React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded-lg font-bold hover:bg-black transition-colors" }, "Simpan Customer")
-                    )
-                ),
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Customer"),
-                    React.createElement("div", { className: "overflow-x-auto" },
-                        React.createElement("table", { className: "w-full text-sm text-left whitespace-nowrap" },
-                            React.createElement("thead", { className: "bg-slate-50 text-slate-500 uppercase font-bold" },
-                                React.createElement("tr", null,
-                                    React.createElement("th", { className: "p-3" }, "Nama"),
-                                    React.createElement("th", { className: "p-3" }, "Alamat"),
-                                    React.createElement("th", { className: "p-3 text-right" }, "Aksi")
-                                )
-                            ),
-                            React.createElement("tbody", null,
-                                customers.length === 0 ? 
-                                React.createElement("tr", null, React.createElement("td", { colSpan: 3, className: "p-4 text-center text-slate-400" }, "Belum ada customer.")) :
-                                customers.map(c => 
-                                    editingId === c.id ?
-                                    React.createElement("tr", { key: c.id, className: "border-b bg-blue-50" },
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.name, onChange: e => setEditData({...editData, name: e.target.value}) })),
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.address, onChange: e => setEditData({...editData, address: e.target.value}) })),
-                                        React.createElement("td", { className: "p-2 text-right flex justify-end gap-2" },
-                                            React.createElement("button", { onClick: saveEdit, className: "p-1 bg-green-500 text-white rounded" }, React.createElement(CheckCircle, { size: 16 })),
-                                            React.createElement("button", { onClick: () => setEditingId(null), className: "p-1 bg-red-400 text-white rounded" }, React.createElement(X, { size: 16 }))
-                                        )
-                                    ) :
-                                    React.createElement("tr", { key: c.id, className: "border-b hover:bg-slate-50" },
-                                        React.createElement("td", { className: "p-3 font-bold" }, c.name),
-                                        React.createElement("td", { className: "p-3" }, c.address),
-                                        React.createElement("td", { className: "p-3 text-right flex justify-end gap-2" },
-                                            React.createElement("button", { onClick: () => startEdit(c), className: "text-blue-500 hover:text-blue-700" }, React.createElement(Pencil, { size: 16 })),
-                                            React.createElement("button", { onClick: () => deleteCustomer(c.id), className: "text-red-400 hover:text-red-600" }, React.createElement(Trash2, { size: 16 }))
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Customer"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded" }, "Simpan"))),
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Customer"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "Distrik"), React.createElement("th", {className:"p-3"}, "Alamat"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, customers.map(c => editingId === c.id ? React.createElement("tr", { key: c.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.district, onChange: e=>setEditData({...editData, district:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.address, onChange: e=>setEditData({...editData, address:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: c.id, className: "border-b" }, React.createElement("td", {className:"p-3"}, c.name), React.createElement("td", {className:"p-3"}, c.district), React.createElement("td", {className:"p-3"}, c.address), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(c.id); setEditData(c)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteCustomer(c.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
             );
         };
 
         const MasterTransporterForm = ({ user }) => {
-            const [formData, setFormData] = useState({ name: '', address: '', phone: '' });
+            const [formData, setFormData] = useState({ name: '', address: '', phone: '', district: '', priceOA: '' });
             const [transporters, setTransporters] = useState([]);
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
-
-            useEffect(() => {
-                if (!user) return;
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'));
-                const unsub = onSnapshot(q, s => setTransporters(s.docs.map(d => ({id: d.id, ...d.data()}))));
-                return () => unsub();
-            }, [user]);
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), { ...formData, createdAt: serverTimestamp() });
-                setFormData({ name: '', address: '', phone: '' });
-            };
-
-            const startEdit = (t) => {
-                setEditingId(t.id);
-                setEditData(t);
-            };
-
-            const saveEdit = async () => {
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', editingId), {
-                        name: editData.name,
-                        address: editData.address,
-                        phone: editData.phone
-                    });
-                    setEditingId(null);
-                } catch (err) {
-                    console.error("Gagal update transporter:", err);
-                    alert("Gagal update data");
-                }
-            };
-
-            const deleteTransporter = async (id) => {
-                if(confirm("Hapus transporter ini?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', id));
-                }
-            };
-
+            useEffect(() => { if (!user) return; return onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'transporters')), s => setTransporters(s.docs.map(d => ({id: d.id, ...d.data()})))); }, [user]);
+            const handleSubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), { ...formData, priceOA: Number(formData.priceOA), createdAt: serverTimestamp() }); setFormData({ name: '', address: '', phone: '', district: '', priceOA: '' }); };
+            const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', editingId), { name: editData.name, address: editData.address, phone: editData.phone, district: editData.district, priceOA: Number(editData.priceOA) }); setEditingId(null); };
+            const deleteTransporter = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', id)); };
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border" },
-                    React.createElement("h2", { className: "font-bold mb-4 flex gap-2 items-center" }, React.createElement(Briefcase, { className: "text-blue-500" }), " Data Transporter"),
-                    React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" },
-                        React.createElement("input", { required: true, placeholder: "Nama Transporter / PT", className: "w-full p-2 border rounded-lg", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }),
-                        React.createElement("input", { placeholder: "Kontak / No. Telepon", className: "w-full p-2 border rounded-lg", value: formData.phone, onChange: e => setFormData({...formData, phone: e.target.value}) }),
-                        React.createElement("textarea", { placeholder: "Alamat Lengkap", className: "w-full p-2 border rounded-lg", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }),
-                        React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded-lg font-bold hover:bg-black transition-colors" }, "Simpan Transporter")
-                    )
-                ),
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Transporter"),
-                    React.createElement("div", { className: "overflow-x-auto" },
-                        React.createElement("table", { className: "w-full text-sm text-left whitespace-nowrap" },
-                            React.createElement("thead", { className: "bg-slate-50 text-slate-500 uppercase font-bold" },
-                                React.createElement("tr", null,
-                                    React.createElement("th", { className: "p-3" }, "Nama"),
-                                    React.createElement("th", { className: "p-3" }, "Kontak"),
-                                    React.createElement("th", { className: "p-3" }, "Alamat"),
-                                    React.createElement("th", { className: "p-3 text-right" }, "Aksi")
-                                )
-                            ),
-                            React.createElement("tbody", null,
-                                transporters.length === 0 ? 
-                                React.createElement("tr", null, React.createElement("td", { colSpan: 4, className: "p-4 text-center text-slate-400" }, "Belum ada transporter.")) :
-                                transporters.map(t => 
-                                    editingId === t.id ?
-                                    React.createElement("tr", { key: t.id, className: "border-b bg-blue-50" },
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.name, onChange: e => setEditData({...editData, name: e.target.value}) })),
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.phone, onChange: e => setEditData({...editData, phone: e.target.value}) })),
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.address, onChange: e => setEditData({...editData, address: e.target.value}) })),
-                                        React.createElement("td", { className: "p-2 text-right flex justify-end gap-2" },
-                                            React.createElement("button", { onClick: saveEdit, className: "p-1 bg-green-500 text-white rounded" }, React.createElement(CheckCircle, { size: 16 })),
-                                            React.createElement("button", { onClick: () => setEditingId(null), className: "p-1 bg-red-400 text-white rounded" }, React.createElement(X, { size: 16 }))
-                                        )
-                                    ) :
-                                    React.createElement("tr", { key: t.id, className: "border-b hover:bg-slate-50" },
-                                        React.createElement("td", { className: "p-3 font-bold" }, t.name),
-                                        React.createElement("td", { className: "p-3" }, t.phone),
-                                        React.createElement("td", { className: "p-3" }, t.address),
-                                        React.createElement("td", { className: "p-3 text-right flex justify-end gap-2" },
-                                            React.createElement("button", { onClick: () => startEdit(t), className: "text-blue-500 hover:text-blue-700" }, React.createElement(Pencil, { size: 16 })),
-                                            React.createElement("button", { onClick: () => deleteTransporter(t.id), className: "text-red-400 hover:text-red-600" }, React.createElement(Trash2, { size: 16 }))
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Transporter"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("div", {className:"grid grid-cols-2 gap-2"}, React.createElement("input", { placeholder: "Kontak", className: "w-full p-2 border rounded", value: formData.phone, onChange: e => setFormData({...formData, phone: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) })), React.createElement("input", { type: "number", placeholder: "Harga OA", className: "w-full p-2 border rounded", value: formData.priceOA, onChange: e => setFormData({...formData, priceOA: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded" }, "Simpan"))),
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Transporter"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "Distrik"), React.createElement("th", {className:"p-3"}, "OA"), React.createElement("th", {className:"p-3"}, "Kontak"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, transporters.map(t => editingId === t.id ? React.createElement("tr", { key: t.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.district, onChange: e=>setEditData({...editData, district:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.priceOA, onChange: e=>setEditData({...editData, priceOA:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.phone, onChange: e=>setEditData({...editData, phone:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: t.id, className: "border-b" }, React.createElement("td", {className:"p-3"}, t.name), React.createElement("td", {className:"p-3"}, t.district), React.createElement("td", {className:"p-3"}, t.priceOA), React.createElement("td", {className:"p-3"}, t.phone), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(t.id); setEditData(t)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteTransporter(t.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
             );
         };
 
@@ -1351,106 +801,13 @@
             const [items, setItems] = useState([]);
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
-
-            useEffect(() => {
-                if (!user) return;
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'items'));
-                const unsub = onSnapshot(q, s => setItems(s.docs.map(d => ({id: d.id, ...d.data()}))));
-                return () => unsub();
-            }, [user]);
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'items'), { ...formData, createdAt: serverTimestamp() });
-                setFormData({ name: '', uom: 'PCS', notes: '' });
-            };
-
-            const startEdit = (item) => {
-                const password = prompt("Masukkan Password Admin untuk Edit Barang:");
-                if (password !== 'admin123') {
-                    alert("Password Salah! Akses ditolak.");
-                    return;
-                }
-                setEditingId(item.id);
-                setEditData(item);
-            };
-
-            const saveEdit = async () => {
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), {
-                        name: editData.name,
-                        uom: editData.uom,
-                        notes: editData.notes || '' 
-                    });
-                    setEditingId(null);
-                } catch (err) {
-                    console.error("Gagal update barang:", err);
-                    alert("Gagal update data");
-                }
-            };
-
-            const deleteItem = async (id) => {
-                const password = prompt("Masukkan Password Admin untuk Hapus Barang:");
-                if (password !== 'admin123') {
-                    alert("Password Salah! Akses ditolak.");
-                    return;
-                }
-
-                if(confirm("Hapus barang ini?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', id));
-                }
-            };
-
+            useEffect(() => { if (!user) return; return onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'items')), s => setItems(s.docs.map(d => ({id: d.id, ...d.data()})))); }, [user]);
+            const handleSubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'items'), { ...formData, createdAt: serverTimestamp() }); setFormData({ name: '', uom: 'PCS', notes: '' }); };
+            const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); };
+            const deleteItem = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', id)); };
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border" },
-                    React.createElement("h2", { className: "font-bold mb-4 flex gap-2 items-center" }, React.createElement(Package, { className: "text-blue-500" }), " Data Barang Dagangan"),
-                    React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" },
-                        React.createElement("input", { required: true, placeholder: "Nama Barang", className: "w-full p-2 border rounded-lg", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }),
-                        React.createElement("input", { required: true, placeholder: "Satuan Dasar (PCS/KG/Ltr)", className: "w-full p-2 border rounded-lg", value: formData.uom, onChange: e => setFormData({...formData, uom: e.target.value}) }),
-                        React.createElement("textarea", { placeholder: "Keterangan Default (Opsional)", className: "w-full p-2 border rounded-lg", value: formData.notes, onChange: e => setFormData({...formData, notes: e.target.value}) }), 
-                        React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded-lg font-bold hover:bg-black transition-colors" }, "Simpan Barang")
-                    )
-                ),
-                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border shadow-sm" },
-                    React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Barang"),
-                    React.createElement("div", { className: "overflow-x-auto" },
-                        React.createElement("table", { className: "w-full text-sm text-left whitespace-nowrap" },
-                            React.createElement("thead", { className: "bg-slate-50 text-slate-500 uppercase font-bold" },
-                                React.createElement("tr", null,
-                                    React.createElement("th", { className: "p-3" }, "Nama Barang"),
-                                    React.createElement("th", { className: "p-3" }, "Satuan"),
-                                    React.createElement("th", { className: "p-3" }, "Keterangan"), 
-                                    React.createElement("th", { className: "p-3 text-right" }, "Aksi")
-                                )
-                            ),
-                            React.createElement("tbody", null,
-                                items.length === 0 ? 
-                                React.createElement("tr", null, React.createElement("td", { colSpan: 4, className: "p-4 text-center text-slate-400" }, "Belum ada barang.")) :
-                                items.map(i => 
-                                    editingId === i.id ?
-                                    React.createElement("tr", { key: i.id, className: "border-b bg-blue-50" },
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.name, onChange: e => setEditData({...editData, name: e.target.value}) })),
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.uom, onChange: e => setEditData({...editData, uom: e.target.value}) })),
-                                        React.createElement("td", { className: "p-2" }, React.createElement("input", { className: "w-full p-1 border rounded", value: editData.notes, onChange: e => setEditData({...editData, notes: e.target.value}) })), 
-                                        React.createElement("td", { className: "p-2 text-right flex justify-end gap-2" },
-                                            React.createElement("button", { onClick: saveEdit, className: "p-1 bg-green-500 text-white rounded" }, React.createElement(CheckCircle, { size: 16 })),
-                                            React.createElement("button", { onClick: () => setEditingId(null), className: "p-1 bg-red-400 text-white rounded" }, React.createElement(X, { size: 16 }))
-                                        )
-                                    ) :
-                                    React.createElement("tr", { key: i.id, className: "border-b hover:bg-slate-50" },
-                                        React.createElement("td", { className: "p-3 font-bold" }, i.name),
-                                        React.createElement("td", { className: "p-3" }, i.uom),
-                                        React.createElement("td", { className: "p-3 italic text-slate-500" }, i.notes || '-'), 
-                                        React.createElement("td", { className: "p-3 text-right flex justify-end gap-2" },
-                                            React.createElement("button", { onClick: () => startEdit(i), className: "text-blue-500 hover:text-blue-700" }, React.createElement(Pencil, { size: 16 })),
-                                            React.createElement("button", { onClick: () => deleteItem(i.id), className: "text-red-400 hover:text-red-600" }, React.createElement(Trash2, { size: 16 }))
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Barang"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama Barang", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Satuan", className: "w-full p-2 border rounded", value: formData.uom, onChange: e => setFormData({...formData, uom: e.target.value}) }), React.createElement("textarea", { placeholder: "Keterangan", className: "w-full p-2 border rounded", value: formData.notes, onChange: e => setFormData({...formData, notes: e.target.value}) }), React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded" }, "Simpan"))),
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Barang"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "UoM"), React.createElement("th", {className:"p-3"}, "Ket"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, items.map(i => editingId === i.id ? React.createElement("tr", { key: i.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.uom, onChange: e=>setEditData({...editData, uom:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.notes, onChange: e=>setEditData({...editData, notes:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: i.id, className: "border-b" }, React.createElement("td", {className:"p-3"}, i.name), React.createElement("td", {className:"p-3"}, i.uom), React.createElement("td", {className:"p-3"}, i.notes), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(i.id); setEditData(i)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteItem(i.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
             );
         };
 
@@ -1553,7 +910,7 @@
                             React.createElement("div", { className: "relative" },
                                 React.createElement(Scale, { className: "absolute left-3 top-3 text-slate-400", size: 18 }),
                                 React.createElement("input", { 
-                                    type: "number",
+                                    type: "number", 
                                     placeholder: "Qty Net Timbangan (Kg)", 
                                     className: "w-full p-2 pl-10 border rounded-lg bg-yellow-50", 
                                     value: formData.netWeight, 
@@ -1877,7 +1234,7 @@
 
         const App = () => {
             const [user, setUser] = useState(null);
-            const [userRole, setUserRole] = useState(null); // 'admin' atau 'transporter'
+            const [userRole, setUserRole] = useState(null); 
             const [view, setView] = useState('transaction'); 
             const [loading, setLoading] = useState(true);
             const [trucks, setTrucks] = useState([]); 
@@ -1916,7 +1273,9 @@
                     onLogin: (role) => {
                         setUserRole(role);
                         // Set view default berdasarkan role
-                        setView(role === 'transporter' ? 'register' : 'transaction');
+                        if (role === 'admin') setView('transaction'); 
+                        if (role === 'user') setView('transaction');
+                        if (role === 'timbang') setView('register');
                     } 
                 });
             }
@@ -1938,18 +1297,25 @@
             const allMenuItems = [
                 {v: 'transaction', i: ClipboardList, l: 'Transaksi'},
                 {v: 'history', i: History, l: 'Riwayat'},
+                {v: 'tracking', i: MapPin, l: 'Live Tracking'}, // NEW MENU ITEM
                 {v: 'recap', i: FileSpreadsheet, l: 'Rekap'}, 
                 {v: 'register', i: Truck, l: 'Armada'},
                 {v: 'customers', i: Users, l: 'Customer'},
-                {v: 'transporters', i: Briefcase, l: 'Transporter'}, // NEW MENU
+                {v: 'transporters', i: Briefcase, l: 'Transporter'}, 
                 {v: 'items', i: Package, l: 'Barang'},
                 {v: 'instruction', i: Info, l: 'Panduan'}
             ];
 
-            // Filter Menu: Jika Transporter, hanya ambil menu 'register' (Armada)
-            const menuItems = userRole === 'transporter' 
-                ? allMenuItems.filter(item => item.v === 'register')
-                : allMenuItems;
+            // Filter Menu Logic
+            let menuItems = [];
+            if (userRole === 'admin') {
+                menuItems = allMenuItems;
+            } else if (userRole === 'user') {
+                // User: Transaksi & Tracking
+                menuItems = allMenuItems.filter(item => item.v === 'transaction' || item.v === 'tracking');
+            } else if (userRole === 'timbang') {
+                menuItems = allMenuItems.filter(item => item.v === 'register');
+            }
 
             return (
                 React.createElement("div", { className: "min-h-screen bg-slate-100 flex flex-col" },
@@ -1960,7 +1326,7 @@
                                     React.createElement(TrendingUp, { size: 24 }),
                                     React.createElement("h1", { className: "text-lg font-bold hidden sm:block" }, "My Trading"),
                                     React.createElement("h1", { className: "text-lg font-bold sm:hidden" }, "MT"),
-                                    userRole === 'transporter' && React.createElement("span", { className: "bg-orange-500 text-xs px-2 py-1 rounded ml-2" }, "Transporter")
+                                    userRole !== 'admin' && React.createElement("span", { className: "bg-orange-500 text-xs px-2 py-1 rounded ml-2 uppercase" }, userRole)
                                 ),
                                 
                                 React.createElement("div", { className: "flex-1 flex justify-start md:justify-center px-4 overflow-x-auto hide-scrollbar" },
@@ -1997,13 +1363,16 @@
                     ),
 
                     React.createElement("main", { className: "max-w-4xl mx-auto p-2 md:p-4 md:pt-8 flex-1 w-full" },
-                        view === 'register' && React.createElement(RegisterTruckForm, { user, trucks }),
+                        // Conditional Rendering based on Roles & Views
+                        (userRole === 'admin' || userRole === 'timbang') && view === 'register' && React.createElement(RegisterTruckForm, { user, trucks }),
                         
-                        // Proteksi Tampilan: Hanya render menu lain jika Admin
                         userRole === 'admin' && view === 'customers' && React.createElement(MasterCustomerForm, { user }),
-                        userRole === 'admin' && view === 'transporters' && React.createElement(MasterTransporterForm, { user }), // Render Transporter Form
+                        userRole === 'admin' && view === 'transporters' && React.createElement(MasterTransporterForm, { user }), 
                         userRole === 'admin' && view === 'items' && React.createElement(MasterItemForm, { user }),
-                        userRole === 'admin' && view === 'transaction' && React.createElement(TransactionForm, { user, trucks }),
+                        
+                        (userRole === 'admin' || userRole === 'user') && view === 'transaction' && React.createElement(TransactionForm, { user, trucks }),
+                        (userRole === 'admin' || userRole === 'user') && view === 'tracking' && React.createElement(LiveTrackingPage, { user }), // Render Live Tracking
+                        
                         userRole === 'admin' && view === 'history' && React.createElement(TransactionHistory, { user }),
                         userRole === 'admin' && view === 'recap' && React.createElement(RecapPage, { user }),
                         userRole === 'admin' && view === 'instruction' && React.createElement(InstructionPage),
