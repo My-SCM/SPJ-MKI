@@ -582,8 +582,9 @@
                 selectedCustomerId: ''
             });
 
+            // UPDATE: Menambahkan field itemId dan code pada state items
             const [items, setItems] = useState([
-                { kode: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }
+                { itemId: '', code: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }
             ]);
 
             const [showSettings, setShowSettings] = useState(false);
@@ -724,19 +725,30 @@
                 }
             };
 
+            // UPDATE: Handle item select by Code
             const handleItemSelect = (index, e) => {
-                const itemId = e.target.value;
+                const itemId = e.target.value; // This is the ID from value attribute
                 const itemData = masterItems.find(i => i.id === itemId);
                 const newItems = [...items];
+                
                 if (itemData) {
-                    newItems[index].kode = itemId;
-                    newItems[index].nama = itemData.name;
-                    newItems[index].uom = itemData.uom;
+                    newItems[index].itemId = itemId;
+                    newItems[index].code = itemData.code || ''; // Store the actual code string
+                    newItems[index].nama = itemData.name;       // Auto-fill Name
+                    newItems[index].uom = itemData.uom;         // Auto-fill UoM
+                    
                     const currentTruck = masterTrucks.find(t => t.id === formData.selectedTruckId);
                     const netWeight = currentTruck ? (parseFloat(currentTruck.netWeight) || 0) : 0;
                     newItems[index].qty_kirim = netWeight;
                     newItems[index].total_berat = netWeight / 1000;
+                    
                     if(itemData.notes) setFormData(prev => ({ ...prev, no_so: itemData.notes }));
+                } else {
+                    // Reset fields if unselected
+                    newItems[index].itemId = '';
+                    newItems[index].code = '';
+                    newItems[index].nama = '';
+                    newItems[index].uom = '';
                 }
                 setItems(newItems);
             };
@@ -751,7 +763,8 @@
                 setItems(newItems);
             };
 
-            const addItem = () => setItems([...items, { kode: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }]);
+            // UPDATE: Initial state for new row
+            const addItem = () => setItems([...items, { itemId: '', code: '', nama: '', uom: '', qty_pesan: '', qty_kirim: '', berat: '', total_berat: '' }]);
             const removeItem = (index) => { if (items.length > 1) setItems(items.filter((_, i) => i !== index)); };
 
             const createPDFObject = (data) => {
@@ -787,7 +800,8 @@
                 const tableC = cfg.table;
                 data.items.forEach(item => {
                     const txtTable = (str, x, y) => { if(str) doc.text(String(str).toUpperCase(), getX(x), getY(y)); };
-                    txtTable(item.kode, tableC.cols.kode, currentY);
+                    // UPDATE: Print the actual CODE string, not ID
+                    txtTable(item.code, tableC.cols.kode, currentY);
                     txtTable(item.nama, tableC.cols.nama, currentY);
                     txtTable(item.uom, tableC.cols.uom, currentY);
                     txtTable(item.qty_pesan, tableC.cols.qty_pesan, currentY);
@@ -919,11 +933,33 @@
                         React.createElement("h3", { className: "text-lg font-medium text-gray-900 border-b pb-2 mb-3" }, "Daftar Barang"),
                         React.createElement("div", { className: "overflow-x-auto" },
                             React.createElement("table", { className: "min-w-full divide-y divide-gray-200" },
-                                React.createElement("thead", { className: "bg-gray-50" }, React.createElement("tr", null, ["Nama Item", "UoM", "Qty Pesan", "Qty Kirim", "Berat", "Total", ""].map((h, i) => React.createElement("th", { key: i, className: `px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase ${h === "Nama Item" ? "w-1/3" : ""}` }, h)))),
+                                React.createElement("thead", { className: "bg-gray-50" }, 
+                                    React.createElement("tr", null, 
+                                        // UPDATE: Table Headers
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-24" }, "Kode"),
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-1/3" }, "Nama Item"),
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" }, "UoM"),
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" }, "Qty Pesan"),
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" }, "Qty Kirim"),
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" }, "Berat"),
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" }, "Total"),
+                                        React.createElement("th", { className: "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase" }, "")
+                                    )
+                                ),
                                 React.createElement("tbody", { className: "bg-white divide-y divide-gray-200" }, items.map((item, idx) => 
                                     React.createElement("tr", { key: idx },
-                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("select", { className: "input-field text-xs", value: item.kode, onChange: (e) => handleItemSelect(idx, e) }, React.createElement("option", { value: "" }, "-"), masterItems.map(i => React.createElement("option", { key: i.id, value: i.id }, i.name)))),
+                                        // UPDATE: Kode Barang Select
+                                        React.createElement("td", { className: "px-2 py-1" }, 
+                                            React.createElement("select", { className: "input-field text-xs", value: item.itemId, onChange: (e) => handleItemSelect(idx, e) }, 
+                                                React.createElement("option", { value: "" }, "-"), 
+                                                masterItems.map(i => React.createElement("option", { key: i.id, value: i.id }, i.code || i.name))
+                                            )
+                                        ),
+                                        // UPDATE: Nama Item ReadOnly
+                                        React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "text", className: "input-field text-xs bg-gray-50", value: item.nama, readOnly: true })),
+                                        // UPDATE: UoM ReadOnly
                                         React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "text", className: "input-field text-xs bg-gray-50", value: item.uom, readOnly: true })),
+                                        
                                         React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs", value: item.qty_pesan, onChange: e => handleItemChange(idx, 'qty_pesan', e.target.value) })),
                                         React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs bg-yellow-50", value: item.qty_kirim, onChange: e => handleItemChange(idx, 'qty_kirim', e.target.value) })),
                                         React.createElement("td", { className: "px-2 py-1" }, React.createElement("input", { type: "number", className: "input-field text-xs", step: "0.01", value: item.berat, onChange: e => handleItemChange(idx, 'berat', e.target.value) })),
@@ -1134,7 +1170,7 @@
         };
 
         const MasterItemForm = ({ user }) => {
-            const [formData, setFormData] = useState({ name: '', uom: 'PCS', notes: '' });
+            const [formData, setFormData] = useState({ code: '', name: '', uom: 'PCS', notes: '' });
             const [items, setItems] = useState([]);
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
@@ -1153,7 +1189,7 @@
 
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'items'), { ...formData, createdAt: serverTimestamp() }); 
-                    setFormData({ name: '', uom: 'PCS', notes: '' }); 
+                    setFormData({ code: '', name: '', uom: 'PCS', notes: '' }); 
                     alert("Barang berhasil disimpan!");
                 } catch (error) {
                     console.error("Error saving item:", error);
@@ -1170,7 +1206,7 @@
             const saveEdit = async () => { 
                 if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
                 try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); 
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { code: editData.code || '', name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); 
                 } catch (error) {
                     if (error.code === 'permission-denied') alert("Gagal Edit: Cek Rules Firebase Console Anda.");
                 }
@@ -1187,9 +1223,14 @@
             };
             
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Barang"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama Barang", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Satuan", className: "w-full p-2 border rounded", value: formData.uom, onChange: e => setFormData({...formData, uom: e.target.value}) }), React.createElement("textarea", { placeholder: "Keterangan", className: "w-full p-2 border rounded", value: formData.notes, onChange: e => setFormData({...formData, notes: e.target.value}) }), 
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Barang"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, 
+                    React.createElement("div", {className:"grid grid-cols-1 md:grid-cols-2 gap-2"},
+                        React.createElement("input", { placeholder: "Kode Barang", className: "w-full p-2 border rounded", value: formData.code, onChange: e => setFormData({...formData, code: e.target.value}) }),
+                        React.createElement("input", { required: true, placeholder: "Nama Barang", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) })
+                    ),
+                    React.createElement("input", { placeholder: "Satuan", className: "w-full p-2 border rounded", value: formData.uom, onChange: e => setFormData({...formData, uom: e.target.value}) }), React.createElement("textarea", { placeholder: "Keterangan", className: "w-full p-2 border rounded", value: formData.notes, onChange: e => setFormData({...formData, notes: e.target.value}) }), 
                 React.createElement("button", { type: "submit", disabled: isSubmitting, className: "w-full bg-slate-800 text-white p-2 rounded disabled:opacity-50" }, isSubmitting ? "Menyimpan..." : "Simpan"))),
-                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Barang"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "UoM"), React.createElement("th", {className:"p-3"}, "Ket"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, items.map(i => editingId === i.id ? React.createElement("tr", { key: i.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.uom, onChange: e=>setEditData({...editData, uom:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.notes, onChange: e=>setEditData({...editData, notes:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: i.id, className: "border-b" }, React.createElement("td", {className:"p-3"}, i.name), React.createElement("td", {className:"p-3"}, i.uom), React.createElement("td", {className:"p-3"}, i.notes), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(i.id); setEditData(i)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteItem(i.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Barang"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Kode"), React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "UoM"), React.createElement("th", {className:"p-3"}, "Ket"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, items.map(i => editingId === i.id ? React.createElement("tr", { key: i.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.code, onChange: e=>setEditData({...editData, code:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.uom, onChange: e=>setEditData({...editData, uom:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.notes, onChange: e=>setEditData({...editData, notes:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: i.id, className: "border-b" }, React.createElement("td", {className:"p-3 font-mono text-xs text-slate-500"}, i.code || '-'), React.createElement("td", {className:"p-3"}, i.name), React.createElement("td", {className:"p-3"}, i.uom), React.createElement("td", {className:"p-3"}, i.notes), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(i.id); setEditData(i)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteItem(i.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
             );
         };
 
@@ -1243,6 +1284,9 @@
 
             const startEdit = (truck) => {
                 const password = prompt("Masukkan Password Admin untuk Edit Armada:");
+                // Untuk Transporter, kita anggap mereka tahu password ini atau kita bypass, 
+                // tapi demi keamanan standard di kode ini saya biarkan check password admin. 
+                // Jika ingin transporter bisa edit tanpa pass, hapus blok if ini.
                 if (password !== 'admin123') {
                     alert("Password Salah! Akses ditolak.");
                     return;
