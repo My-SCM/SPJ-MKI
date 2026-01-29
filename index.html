@@ -950,12 +950,31 @@
             const [customers, setCustomers] = useState([]);
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
+            const [isSubmitting, setIsSubmitting] = useState(false);
+
             useEffect(() => { if (!user) return; return onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'customers')), s => setCustomers(s.docs.map(d => ({id: d.id, ...d.data()})))); }, [user]);
-            const handleSubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), { ...formData, createdAt: serverTimestamp() }); setFormData({ name: '', address: '', district: '' }); };
+            
+            const handleSubmit = async (e) => { 
+                e.preventDefault(); 
+                setIsSubmitting(true);
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), { ...formData, createdAt: serverTimestamp() }); 
+                    setFormData({ name: '', address: '', district: '' }); 
+                    alert("Customer berhasil disimpan!");
+                } catch (error) {
+                    console.error("Error saving customer:", error);
+                    alert("Gagal menyimpan: " + error.message);
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
             const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingId), { name: editData.name, address: editData.address, district: editData.district }); setEditingId(null); };
             const deleteCustomer = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', id)); };
+            
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Customer"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded" }, "Simpan"))),
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Customer"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), 
+                React.createElement("button", { type: "submit", disabled: isSubmitting, className: "w-full bg-slate-800 text-white p-2 rounded disabled:opacity-50" }, isSubmitting ? "Menyimpan..." : "Simpan"))),
                 React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Customer"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "Distrik"), React.createElement("th", {className:"p-3"}, "Alamat"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, customers.map(c => editingId === c.id ? React.createElement("tr", { key: c.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.district, onChange: e=>setEditData({...editData, district:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.address, onChange: e=>setEditData({...editData, address:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: c.id, className: "border-b" }, React.createElement("td", {className:"p-3"}, c.name), React.createElement("td", {className:"p-3"}, c.district), React.createElement("td", {className:"p-3"}, c.address), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(c.id); setEditData(c)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteCustomer(c.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
             );
         };
@@ -965,12 +984,31 @@
             const [transporters, setTransporters] = useState([]);
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
+            const [isSubmitting, setIsSubmitting] = useState(false);
+
             useEffect(() => { if (!user) return; return onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'transporters')), s => setTransporters(s.docs.map(d => ({id: d.id, ...d.data()})))); }, [user]);
-            const handleSubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), { ...formData, priceOA: Number(formData.priceOA), createdAt: serverTimestamp() }); setFormData({ name: '', address: '', phone: '', district: '', priceOA: '' }); };
+            
+            const handleSubmit = async (e) => { 
+                e.preventDefault(); 
+                setIsSubmitting(true);
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), { ...formData, priceOA: Number(formData.priceOA), createdAt: serverTimestamp() }); 
+                    setFormData({ name: '', address: '', phone: '', district: '', priceOA: '' }); 
+                    alert("Transporter berhasil disimpan!");
+                } catch (error) {
+                    console.error("Error saving transporter:", error);
+                    alert("Gagal menyimpan: " + error.message);
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
             const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', editingId), { name: editData.name, address: editData.address, phone: editData.phone, district: editData.district, priceOA: Number(editData.priceOA) }); setEditingId(null); };
             const deleteTransporter = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', id)); };
+            
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Transporter"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("div", {className:"grid grid-cols-2 gap-2"}, React.createElement("input", { placeholder: "Kontak", className: "w-full p-2 border rounded", value: formData.phone, onChange: e => setFormData({...formData, phone: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) })), React.createElement("input", { type: "number", placeholder: "Harga OA", className: "w-full p-2 border rounded", value: formData.priceOA, onChange: e => setFormData({...formData, priceOA: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded" }, "Simpan"))),
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Transporter"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("div", {className:"grid grid-cols-2 gap-2"}, React.createElement("input", { placeholder: "Kontak", className: "w-full p-2 border rounded", value: formData.phone, onChange: e => setFormData({...formData, phone: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) })), React.createElement("input", { type: "number", placeholder: "Harga OA", className: "w-full p-2 border rounded", value: formData.priceOA, onChange: e => setFormData({...formData, priceOA: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), 
+                React.createElement("button", { type: "submit", disabled: isSubmitting, className: "w-full bg-slate-800 text-white p-2 rounded disabled:opacity-50" }, isSubmitting ? "Menyimpan..." : "Simpan"))),
                 React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Transporter"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "Distrik"), React.createElement("th", {className:"p-3"}, "OA"), React.createElement("th", {className:"p-3"}, "Kontak"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, transporters.map(t => editingId === t.id ? React.createElement("tr", { key: t.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.district, onChange: e=>setEditData({...editData, district:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.priceOA, onChange: e=>setEditData({...editData, priceOA:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.phone, onChange: e=>setEditData({...editData, phone:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: t.id, className: "border-b" }, React.createElement("td", {className:"p-3"}, t.name), React.createElement("td", {className:"p-3"}, t.district), React.createElement("td", {className:"p-3"}, t.priceOA), React.createElement("td", {className:"p-3"}, t.phone), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(t.id); setEditData(t)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteTransporter(t.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
             );
         };
@@ -980,12 +1018,31 @@
             const [items, setItems] = useState([]);
             const [editingId, setEditingId] = useState(null);
             const [editData, setEditData] = useState({});
+            const [isSubmitting, setIsSubmitting] = useState(false);
+
             useEffect(() => { if (!user) return; return onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'items')), s => setItems(s.docs.map(d => ({id: d.id, ...d.data()})))); }, [user]);
-            const handleSubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'items'), { ...formData, createdAt: serverTimestamp() }); setFormData({ name: '', uom: 'PCS', notes: '' }); };
+            
+            const handleSubmit = async (e) => { 
+                e.preventDefault(); 
+                setIsSubmitting(true);
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'items'), { ...formData, createdAt: serverTimestamp() }); 
+                    setFormData({ name: '', uom: 'PCS', notes: '' }); 
+                    alert("Barang berhasil disimpan!");
+                } catch (error) {
+                    console.error("Error saving item:", error);
+                    alert("Gagal menyimpan: " + error.message);
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
             const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); };
             const deleteItem = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', id)); };
+            
             return React.createElement("div", { className: "space-y-6 no-print" },
-                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Barang"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama Barang", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Satuan", className: "w-full p-2 border rounded", value: formData.uom, onChange: e => setFormData({...formData, uom: e.target.value}) }), React.createElement("textarea", { placeholder: "Keterangan", className: "w-full p-2 border rounded", value: formData.notes, onChange: e => setFormData({...formData, notes: e.target.value}) }), React.createElement("button", { className: "w-full bg-slate-800 text-white p-2 rounded" }, "Simpan"))),
+                React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Barang"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama Barang", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Satuan", className: "w-full p-2 border rounded", value: formData.uom, onChange: e => setFormData({...formData, uom: e.target.value}) }), React.createElement("textarea", { placeholder: "Keterangan", className: "w-full p-2 border rounded", value: formData.notes, onChange: e => setFormData({...formData, notes: e.target.value}) }), 
+                React.createElement("button", { type: "submit", disabled: isSubmitting, className: "w-full bg-slate-800 text-white p-2 rounded disabled:opacity-50" }, isSubmitting ? "Menyimpan..." : "Simpan"))),
                 React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h3", { className: "font-bold mb-4" }, "Daftar Barang"), React.createElement("div", { className: "overflow-x-auto" }, React.createElement("table", { className: "w-full text-sm text-left" }, React.createElement("thead", { className: "bg-slate-50 font-bold" }, React.createElement("tr", null, React.createElement("th", {className:"p-3"}, "Nama"), React.createElement("th", {className:"p-3"}, "UoM"), React.createElement("th", {className:"p-3"}, "Ket"), React.createElement("th", {className:"p-3"}, "Aksi"))), React.createElement("tbody", null, items.map(i => editingId === i.id ? React.createElement("tr", { key: i.id }, React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.name, onChange: e=>setEditData({...editData, name:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.uom, onChange: e=>setEditData({...editData, uom:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("input", {value: editData.notes, onChange: e=>setEditData({...editData, notes:e.target.value})})), React.createElement("td", {className:"p-2"}, React.createElement("button", {onClick: saveEdit}, "Simpan"))) : React.createElement("tr", { key: i.id, className: "border-b" }, React.createElement("td", {className:"p-3"}, i.name), React.createElement("td", {className:"p-3"}, i.uom), React.createElement("td", {className:"p-3"}, i.notes), React.createElement("td", {className:"p-3"}, React.createElement("button", {onClick: ()=> {setEditingId(i.id); setEditData(i)}}, "Edit"), React.createElement("button", {onClick: ()=>deleteItem(i.id), className:"ml-2 text-red-500"}, "Hapus"))))))))
             );
         };
