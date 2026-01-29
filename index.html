@@ -70,7 +70,7 @@
             Box, Search, History, Settings, Save, AlertCircle, Users, 
             Package, Printer, Calendar, FileText, X, Eye, AlignJustify, 
             TrendingUp, MessageSquare, Pencil, Trash2, FileSpreadsheet, Download, Send, Lock, Info, AlertTriangle, LogOut,
-            Scale, Receipt
+            Scale, Receipt, Database, Server
         } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -1562,7 +1562,18 @@ ${data.notes ? `   📝 Ket: ${data.notes}` : ''}`;
                 });
             }
 
-            if (loading) return React.createElement('div', {className: "flex items-center justify-center h-screen bg-slate-50 font-mono text-blue-600 animate-pulse"}, "LOADING_TRADING_SYSTEM...");
+            if (loading) return React.createElement('div', { className: "flex flex-col items-center justify-center h-screen bg-white" },
+                React.createElement("div", { className: "relative flex items-center justify-center w-24 h-24 mb-8" },
+                    React.createElement("div", { className: "absolute inset-0 border-4 border-blue-100 rounded-full" }),
+                    React.createElement("div", { className: "absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin" }),
+                    React.createElement(TrendingUp, { className: "text-blue-600", size: 32 })
+                ),
+                React.createElement("h2", { className: "text-2xl font-black text-slate-800 mb-2 tracking-tight" }, "MY TRADING"),
+                React.createElement("p", { className: "text-slate-500 font-medium animate-pulse" }, "Pengalihan server Mytrading MyScm..."),
+                React.createElement("div", { className: "mt-8 flex gap-2" },
+                    [0,1,2].map(i => React.createElement("div", { key: i, className: "w-2 h-2 bg-blue-600 rounded-full animate-bounce", style: { animationDelay: `${i * 0.1}s` } }))
+                )
+            );
 
             // Konfigurasi Menu berdasarkan Role
             const allMenuItems = [
