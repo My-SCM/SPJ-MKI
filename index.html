@@ -957,6 +957,12 @@
             const handleSubmit = async (e) => { 
                 e.preventDefault(); 
                 setIsSubmitting(true);
+
+                // FIX: Auto-reconnect if auth is lost
+                if (!auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                }
+
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), { ...formData, createdAt: serverTimestamp() }); 
                     setFormData({ name: '', address: '', district: '' }); 
@@ -969,8 +975,17 @@
                 }
             };
 
-            const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingId), { name: editData.name, address: editData.address, district: editData.district }); setEditingId(null); };
-            const deleteCustomer = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', id)); };
+            const saveEdit = async () => { 
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingId), { name: editData.name, address: editData.address, district: editData.district }); 
+                setEditingId(null); 
+            };
+            const deleteCustomer = async (id) => { 
+                if(confirm("Hapus?")) {
+                    if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', id)); 
+                }
+            };
             
             return React.createElement("div", { className: "space-y-6 no-print" },
                 React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Customer"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), 
@@ -991,6 +1006,12 @@
             const handleSubmit = async (e) => { 
                 e.preventDefault(); 
                 setIsSubmitting(true);
+
+                // FIX: Auto-reconnect if auth is lost
+                if (!auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                }
+
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'transporters'), { ...formData, priceOA: Number(formData.priceOA), createdAt: serverTimestamp() }); 
                     setFormData({ name: '', address: '', phone: '', district: '', priceOA: '' }); 
@@ -1003,8 +1024,16 @@
                 }
             };
 
-            const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', editingId), { name: editData.name, address: editData.address, phone: editData.phone, district: editData.district, priceOA: Number(editData.priceOA) }); setEditingId(null); };
-            const deleteTransporter = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', id)); };
+            const saveEdit = async () => { 
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', editingId), { name: editData.name, address: editData.address, phone: editData.phone, district: editData.district, priceOA: Number(editData.priceOA) }); setEditingId(null); 
+            };
+            const deleteTransporter = async (id) => { 
+                if(confirm("Hapus?")) {
+                    if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transporters', id)); 
+                }
+            };
             
             return React.createElement("div", { className: "space-y-6 no-print" },
                 React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Transporter"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("div", {className:"grid grid-cols-2 gap-2"}, React.createElement("input", { placeholder: "Kontak", className: "w-full p-2 border rounded", value: formData.phone, onChange: e => setFormData({...formData, phone: e.target.value}) }), React.createElement("input", { placeholder: "Distrik", className: "w-full p-2 border rounded", value: formData.district, onChange: e => setFormData({...formData, district: e.target.value}) })), React.createElement("input", { type: "number", placeholder: "Harga OA", className: "w-full p-2 border rounded", value: formData.priceOA, onChange: e => setFormData({...formData, priceOA: e.target.value}) }), React.createElement("textarea", { placeholder: "Alamat", className: "w-full p-2 border rounded", value: formData.address, onChange: e => setFormData({...formData, address: e.target.value}) }), 
@@ -1025,6 +1054,12 @@
             const handleSubmit = async (e) => { 
                 e.preventDefault(); 
                 setIsSubmitting(true);
+
+                // FIX: Auto-reconnect
+                if (!auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                }
+
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'items'), { ...formData, createdAt: serverTimestamp() }); 
                     setFormData({ name: '', uom: 'PCS', notes: '' }); 
@@ -1037,8 +1072,16 @@
                 }
             };
 
-            const saveEdit = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); };
-            const deleteItem = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', id)); };
+            const saveEdit = async () => { 
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', editingId), { name: editData.name, uom: editData.uom, notes: editData.notes || '' }); setEditingId(null); 
+            };
+            const deleteItem = async (id) => { 
+                if(confirm("Hapus?")) {
+                    if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'items', id)); 
+                }
+            };
             
             return React.createElement("div", { className: "space-y-6 no-print" },
                 React.createElement("div", { className: "bg-white p-4 rounded-xl border" }, React.createElement("h2", { className: "font-bold mb-4" }, "Data Barang"), React.createElement("form", { onSubmit: handleSubmit, className: "space-y-3" }, React.createElement("input", { required: true, placeholder: "Nama Barang", className: "w-full p-2 border rounded", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) }), React.createElement("input", { placeholder: "Satuan", className: "w-full p-2 border rounded", value: formData.uom, onChange: e => setFormData({...formData, uom: e.target.value}) }), React.createElement("textarea", { placeholder: "Keterangan", className: "w-full p-2 border rounded", value: formData.notes, onChange: e => setFormData({...formData, notes: e.target.value}) }), 
@@ -1069,6 +1112,12 @@
                 }
 
                 setIsSubmitting(true);
+
+                // FIX: Auto-reconnect
+                if (!auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                }
+
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'trucks'), { 
                         ...formData, 
@@ -1106,6 +1155,11 @@
             const saveEdit = async () => {
                 if(!editData.nopol || !editData.driver) return alert("Data tidak boleh kosong!");
                 
+                // FIX: Auto-reconnect
+                if (!auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                }
+
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trucks', editingId), {
                         nopol: editData.nopol.toUpperCase(),
@@ -1131,6 +1185,7 @@
                 }
 
                 if(confirm("Yakin hapus armada ini?")) {
+                    if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trucks', id));
                 }
             };
@@ -1298,6 +1353,11 @@
 
             const saveSettings = async () => {
                 setLoading(true);
+                // FIX: Auto-reconnect
+                if (!auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                }
+                
                 try {
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), {
                         printConfig: coords,
@@ -1332,6 +1392,12 @@
                 if(exists) return alert("Gagal: Username sudah terdaftar! Gunakan yang lain.");
 
                 setLoading(true); // Manfaatkan state loading yg sudah ada
+                
+                // FIX: Auto-reconnect
+                if (!auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch(e) { console.error("Reconnect failed"); }
+                }
+
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
                         ...newUser,
@@ -1349,6 +1415,9 @@
 
             const handleDeleteUser = async (id) => {
                 if(!confirm("Yakin hapus user ini?")) return;
+                
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
                 } catch(err) {
@@ -1359,6 +1428,9 @@
 
             const handleChangePassword = async (id) => {
                 if(!newPass) return alert("Password tidak boleh kosong");
+                
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), {
                         password: newPass
@@ -1378,6 +1450,9 @@
                 if (!confirm("Apakah Anda benar-benar yakin ingin mengosongkan data transaksi?")) return;
 
                 setIsResetting(true);
+                
+                if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+
                 try {
                     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'));
                     const snapshot = await getDocs(q); 
@@ -1396,6 +1471,9 @@
                  if (!confirm("Yakin hapus Master Data?")) return;
 
                  setIsResetting(true);
+                 
+                 if (!auth.currentUser) { try { await signInAnonymously(auth); } catch(e) {} }
+
                  try {
                     const collections = ['customers', 'items', 'trucks'];
                     for (const colName of collections) {
@@ -1663,14 +1741,20 @@
 
             useEffect(() => {
                 const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
+                    let retries = 3;
+                    while (retries > 0 && !auth.currentUser) {
+                        try {
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                            break; 
+                        } catch (error) {
+                            console.error("Auth error, retrying...", error);
+                            retries--;
+                            await new Promise(r => setTimeout(r, 1000));
                         }
-                    } catch (error) {
-                        console.error("Auth error:", error);
                     }
                 };
                 initAuth();
