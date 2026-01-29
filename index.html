@@ -439,8 +439,10 @@
             }, [user]);
 
             const filteredData = transactions.filter(t => {
-                return t.date >= filter.startDate && t.date <= filter.endDate;
-            });
+               // Gunakan t.tanggal (sesuai field di TransactionForm) bukan t.date
+    const dataDate = t.tanggal; 
+    return dataDate >= filter.startDate && dataDate <= filter.endDate;
+});
 
             const handleSaveActual = async (id) => {
                 const val = editValues[id];
@@ -481,14 +483,14 @@
             const downloadExcel = () => {
                 if(filteredData.length === 0) return alert("Tidak ada data untuk didownload");
                 const dataForExcel = filteredData.map(row => ({
-                    "Tanggal": row.date,
-                    "No Polisi": row.nopol,
+                    "Tanggal": row.tanggal,
+                    "No Polisi": row.no_truk (atau row.nopol,
                     "Driver": row.driver,
                     "No HP": row.noHp || '-',
                     "Customer": row.customerName,
                     "Alamat Customer": row.customerAddress || '',
-                    "Barang": row.itemName,
-                    "Qty Kirim": Number(row.qty), 
+                    "Barang": rrow.items[0].nama (Data berupa Array),
+                    "Qty Kirim": row.items[0].qty_kirim, 
                     "Qty Actual": row.qtyActual ? Number(row.qtyActual) : '-',
                     "Ongkos Angkut": row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(row.priceOA) : '-',
                     "Validasi": row.validationStatus || 'Pending',
