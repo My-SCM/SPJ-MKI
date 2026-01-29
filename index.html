@@ -217,7 +217,7 @@
             );
         };
 
-        // 2. LIVE TRACKING PAGE (UPDATED WITH MARQUEE)
+        // 2. LIVE TRACKING PAGE
         const LiveTrackingPage = ({ user }) => {
             const [transactions, setTransactions] = useState([]);
 
@@ -364,7 +364,111 @@
             );
         };
 
-        // 4. TRANSACTION FORM
+        // 4. RECAP PAGE (RESTORED)
+        const RecapPage = ({ user }) => {
+            const [transactions, setTransactions] = useState([]);
+            const [filter, setFilter] = useState({ 
+                startDate: new Date().toISOString().split('T')[0], 
+                endDate: new Date().toISOString().split('T')[0] 
+            });
+            const [editValues, setEditValues] = useState({});
+            const [editStatusValues, setEditStatusValues] = useState({});
+
+            useEffect(() => {
+                if (!user) return;
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'transactions'));
+                const unsub = onSnapshot(q, s => {
+                    const data = s.docs.map(d => ({id: d.id, ...d.data()}));
+                    setTransactions(data.sort((a,b) => new Date(b.date) - new Date(a.date)));
+                });
+                return () => unsub();
+            }, [user]);
+
+            const filteredData = transactions.filter(t => {
+                return t.date >= filter.startDate && t.date <= filter.endDate;
+            });
+
+            const handleSaveActual = async (id) => {
+                const val = editValues[id];
+                if (val === undefined || val === '') return;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { qtyActual: Number(val) });
+                    setEditValues(prev => { const next = {...prev}; delete next[id]; return next; });
+                    alert("Qty Actual berhasil disimpan!");
+                } catch (err) { console.error("Error saving actual qty:", err); alert("Gagal menyimpan data."); }
+            };
+
+            const handleSaveStatus = async (id) => {
+                const val = editStatusValues[id];
+                if (val === undefined) return;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transactions', id), { validationStatus: val });
+                    setEditStatusValues(prev => { const next = {...prev}; delete next[id]; return next; });
+                    alert("Status Validasi berhasil disimpan!");
+                } catch (err) { console.error("Error saving status:", err); alert("Gagal menyimpan status."); }
+            };
+
+            const downloadExcel = () => {
+                if(filteredData.length === 0) return alert("Tidak ada data untuk didownload");
+                const dataForExcel = filteredData.map(row => ({
+                    "Tanggal": row.date,
+                    "No Polisi": row.nopol,
+                    "Driver": row.driver,
+                    "No HP": row.noHp || '-',
+                    "Customer": row.customerName,
+                    "Alamat Customer": row.customerAddress || '',
+                    "Barang": row.itemName,
+                    "Qty Kirim": Number(row.qty), 
+                    "Qty Actual": row.qtyActual ? Number(row.qtyActual) : '-',
+                    "Ongkos Angkut": row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(row.priceOA) : '-',
+                    "Validasi": row.validationStatus || 'Pending',
+                    "Satuan": row.uom,
+                    "Status Jalan": row.status === 'COMPLETED' ? 'Selesai' : 'Dalam Perjalanan',
+                    "Keterangan": row.notes || ''
+                }));
+                const ws = window.XLSX.utils.json_to_sheet(dataForExcel);
+                const wb = window.XLSX.utils.book_new();
+                window.XLSX.utils.book_append_sheet(wb, ws, "Rekap Transaksi");
+                window.XLSX.writeFile(wb, `Rekap_Transaksi_${filter.startDate}_sd_${filter.endDate}.xlsx`);
+            };
+
+            return React.createElement("div", { className: "space-y-6 no-print" },
+                React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border shadow-sm" },
+                    React.createElement("h2", { className: "font-bold mb-4 flex gap-2 items-center" }, 
+                        React.createElement(FileSpreadsheet, { className: "text-green-600" }), " Rekapitulasi Data & Validasi"
+                    ),
+                    React.createElement("div", { className: "flex flex-col md:flex-row gap-4 items-end mb-6" },
+                        React.createElement("div", { className: "w-full" }, React.createElement("label", { className: "text-xs font-bold text-slate-500" }, "DARI TANGGAL"), React.createElement("input", { type: "date", className: "w-full p-2 border rounded-lg", value: filter.startDate, onChange: e => setFilter({...filter, startDate: e.target.value}) })),
+                        React.createElement("div", { className: "w-full" }, React.createElement("label", { className: "text-xs font-bold text-slate-500" }, "SAMPAI TANGGAL"), React.createElement("input", { type: "date", className: "w-full p-2 border rounded-lg", value: filter.endDate, onChange: e => setFilter({...filter, endDate: e.target.value}) })),
+                        React.createElement("button", { onClick: downloadExcel, className: "w-full md:w-auto bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700" }, "Download .XLSX")
+                    ),
+                    React.createElement("div", { className: "overflow-x-auto border rounded-lg" },
+                        React.createElement("table", { className: "w-full text-xs text-left whitespace-nowrap" },
+                            React.createElement("thead", { className: "bg-slate-100 text-slate-600 uppercase font-bold" },
+                                React.createElement("tr", null, React.createElement("th", { className: "p-3 border-b" }, "Tanggal"), React.createElement("th", { className: "p-3 border-b" }, "Nopol"), React.createElement("th", { className: "p-3 border-b" }, "Driver"), React.createElement("th", { className: "p-3 border-b" }, "Customer"), React.createElement("th", { className: "p-3 border-b" }, "Barang"), React.createElement("th", { className: "p-3 border-b text-right" }, "Qty Kirim"), React.createElement("th", { className: "p-3 border-b text-center" }, "Qty Actual"), React.createElement("th", { className: "p-3 border-b text-center" }, "Ongkos Angkut"), React.createElement("th", { className: "p-3 border-b text-center" }, "Validasi"), React.createElement("th", { className: "p-3 border-b" }, "Status"), React.createElement("th", { className: "p-3 border-b" }, "Ket"))
+                            ),
+                            React.createElement("tbody", null, filteredData.length === 0 ? React.createElement("tr", null, React.createElement("td", { colSpan: 11, className: "p-8 text-center text-slate-400" }, "Tidak ada data.")) : filteredData.map(row => 
+                                React.createElement("tr", { key: row.id, className: "hover:bg-slate-50 border-b" },
+                                    React.createElement("td", { className: "p-3" }, row.date),
+                                    React.createElement("td", { className: "p-3 font-bold" }, row.nopol),
+                                    React.createElement("td", { className: "p-3" }, row.driver),
+                                    React.createElement("td", { className: "p-3" }, row.customerName),
+                                    React.createElement("td", { className: "p-3" }, row.itemName),
+                                    React.createElement("td", { className: "p-3 text-right font-bold" }, `${row.qty} ${row.uom}`),
+                                    React.createElement("td", { className: "p-2 bg-yellow-50" }, React.createElement("input", { type: "number", className: "w-16 p-1 border rounded text-right", placeholder: row.qtyActual || "0", value: editValues[row.id] !== undefined ? editValues[row.id] : (row.qtyActual || ''), onChange: (e) => setEditValues({...editValues, [row.id]: e.target.value}) }), editValues[row.id] !== undefined && React.createElement("button", { onClick: () => handleSaveActual(row.id), className: "ml-1" }, "💾")),
+                                    React.createElement("td", { className: "p-3 text-right" }, row.priceOA ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(row.priceOA) : '-'),
+                                    React.createElement("td", { className: "p-2 bg-blue-50 text-center" }, React.createElement("select", { className: "p-1 border rounded", value: editStatusValues[row.id] !== undefined ? editStatusValues[row.id] : (row.validationStatus || ''), onChange: (e) => setEditStatusValues({...editStatusValues, [row.id]: e.target.value}) }, React.createElement("option", { value: "" }, "-"), React.createElement("option", { value: "Acc" }, "Acc"), React.createElement("option", { value: "Reject" }, "Reject")), editStatusValues[row.id] !== undefined && React.createElement("button", { onClick: () => handleSaveStatus(row.id), className: "ml-1" }, "💾")),
+                                    React.createElement("td", { className: "p-3" }, row.status === 'COMPLETED' ? 'Selesai' : 'Jalan'),
+                                    React.createElement("td", { className: "p-3 italic" }, row.notes || '-')
+                                )
+                            ))
+                        )
+                    )
+                )
+            );
+        };
+
+        // 5. TRANSACTION FORM
         const TransactionForm = ({ user, trucks }) => {
             const [masterTransporters, setMasterTransporters] = useState([]);
             const [masterTrucks, setMasterTrucks] = useState([]);
@@ -1311,8 +1415,8 @@
             if (userRole === 'admin') {
                 menuItems = allMenuItems;
             } else if (userRole === 'user') {
-                // User: Transaksi & Tracking
-                menuItems = allMenuItems.filter(item => item.v === 'transaction' || item.v === 'tracking');
+                // User: Transaksi, Tracking, & Rekap (ADDED RECAP)
+                menuItems = allMenuItems.filter(item => item.v === 'transaction' || item.v === 'tracking' || item.v === 'recap');
             } else if (userRole === 'timbang') {
                 menuItems = allMenuItems.filter(item => item.v === 'register');
             }
@@ -1374,7 +1478,9 @@
                         (userRole === 'admin' || userRole === 'user') && view === 'tracking' && React.createElement(LiveTrackingPage, { user }), // Render Live Tracking
                         
                         userRole === 'admin' && view === 'history' && React.createElement(TransactionHistory, { user }),
-                        userRole === 'admin' && view === 'recap' && React.createElement(RecapPage, { user }),
+                        // Allow User to see Recap
+                        (userRole === 'admin' || userRole === 'user') && view === 'recap' && React.createElement(RecapPage, { user }),
+                        
                         userRole === 'admin' && view === 'instruction' && React.createElement(InstructionPage),
                         userRole === 'admin' && view === 'settings' && React.createElement(SettingsPage, { user })
                     ),
