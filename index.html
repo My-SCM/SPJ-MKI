@@ -34,6 +34,7 @@
             font-family: 'Inter', sans-serif; 
             -webkit-tap-highlight-color: transparent; 
             background-color: #f8fafc; /* Slate 50 - Very light grey background */
+            overflow: hidden; /* Prevent body scroll, handle in app shell */
         }
         
         .font-print { font-family: 'Courier Prime', monospace; }
@@ -80,7 +81,7 @@
         }
 
         @media print {
-            body { background: white !important; }
+            body { background: white !important; overflow: auto !important; }
             .no-print { display: none !important; }
             .print-area { display: block !important; padding: 0; margin: 0; width: 100%; }
             @page { size: auto; margin: 0mm; }
@@ -122,12 +123,12 @@
             Box, Search, History, Settings, Save, AlertCircle, Users, 
             Package, Printer, Calendar, FileText, X, Eye, AlignJustify, 
             TrendingUp, MessageSquare, Pencil, Trash2, FileSpreadsheet, Download, Send, Lock, Info, AlertTriangle, LogOut,
-            Scale, Receipt, Database, Server, Briefcase, MapPin, Navigation, Cloud
+            Scale, Receipt, Database, Server, Briefcase, MapPin, Navigation, Cloud, UserPlus, Key
         } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
@@ -161,24 +162,38 @@
 
         // --- DEFINISI KOMPONEN ---
 
-        // 1. HALAMAN LOGIN UTAMA
+        // 1. HALAMAN LOGIN UTAMA (UPDATED: DB CHECK)
         const LoginScreen = ({ onLogin }) => {
             const [username, setUsername] = useState('');
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
 
-            const handleLogin = (e) => {
+            const handleLogin = async (e) => {
                 e.preventDefault();
-                // HARDCODED CREDENTIALS
-                if (username === 'admin' && password === 'admin123') {
-                    onLogin('admin');
-                } else if (username === 'user' && password === 'user123') {
-                    onLogin('user');
-                } else if (username === 'timbang' && password === 'timbang123') {
-                    onLogin('timbang');
-                } else {
-                    setError('Username atau Password salah!');
+                setError('');
+                setLoading(true);
+
+                try {
+                    // Cari user di database berdasarkan username dan password
+                    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), 
+                        where('username', '==', username),
+                        where('password', '==', password)
+                    );
+                    
+                    const snapshot = await getDocs(q);
+
+                    if (!snapshot.empty) {
+                        const userData = snapshot.docs[0].data();
+                        onLogin(userData.role);
+                    } else {
+                        setError('Username atau Password salah!');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    setError('Terjadi kesalahan koneksi.');
                 }
+                setLoading(false);
             };
 
             return React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-sky-50 p-4" },
@@ -214,10 +229,11 @@
                         ),
                         React.createElement("button", { 
                             type: "submit",
-                            className: "w-full bg-sky-600 text-white font-bold py-3.5 rounded-xl hover:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200 hover:shadow-sky-300"
-                        }, "MASUK SISTEM"),
+                            disabled: loading,
+                            className: "w-full bg-sky-600 text-white font-bold py-3.5 rounded-xl hover:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200 hover:shadow-sky-300 disabled:opacity-70"
+                        }, loading ? "Memeriksa..." : "MASUK SISTEM"),
                         React.createElement("div", { className: "text-center mt-6 text-xs text-slate-400 font-medium" },
-                           "Versi 1.4.1 - Secure Login"
+                           "Versi 1.4.2 - Database Auth"
                         )
                     )
                 )
@@ -358,7 +374,6 @@
         };
 
         // 3. INSTRUCTION PAGE
-        // ... (No logic change, just visual consistency handled by global styles)
         const InstructionPage = () => {
             return React.createElement("div", { className: "space-y-6 pb-20 no-print" },
                 React.createElement("div", { className: "bg-white p-6 rounded-xl border border-slate-100 shadow-sm" },
@@ -385,7 +400,7 @@
             );
         };
 
-        // 4. RECAP PAGE (RESTORED)
+        // 4. RECAP PAGE
         const RecapPage = ({ user }) => {
             const [transactions, setTransactions] = useState([]);
             const [filter, setFilter] = useState({ 
@@ -1138,9 +1153,17 @@
             const [waConfig, setWaConfig] = useState({ token: '', targetGroups: '' });
             const [loading, setLoading] = useState(false);
             const [isResetting, setIsResetting] = useState(false);
+            
+            // User Management State
+            const [usersList, setUsersList] = useState([]);
+            const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
+            const [editingPassId, setEditingPassId] = useState(null);
+            const [newPass, setNewPass] = useState('');
 
             useEffect(() => {
                 if (!user) return;
+                
+                // Load Settings
                 const loadSettings = async () => {
                     const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
                     if (snap.exists()) {
@@ -1150,17 +1173,75 @@
                     }
                 };
                 loadSettings();
+
+                // Load Users List
+                const unsubUsers = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users')), s => {
+                    setUsersList(s.docs.map(d => ({id: d.id, ...d.data()})));
+                });
+                
+                return () => unsubUsers();
             }, [user]);
 
-            const handleLogin = (e) => {
+            const saveSettings = async () => {
+                setLoading(true);
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), {
+                        printConfig: coords,
+                        waConfig: waConfig,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+                    alert("Pengaturan Berhasil Disimpan!");
+                } catch (err) {
+                    console.error(err);
+                    alert("Gagal menyimpan");
+                }
+                setLoading(false);
+            };
+
+            // User Management Functions
+            const handleAddUser = async (e) => {
                 e.preventDefault();
-                if (loginData.username === 'admin' && loginData.password === 'admin123') {
-                    setIsAuthenticated(true);
-                } else {
-                    alert("Username atau Password salah!");
+                if (!newUser.username || !newUser.password) return alert("Username dan Password wajib diisi");
+                
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
+                        ...newUser,
+                        createdAt: serverTimestamp()
+                    });
+                    setNewUser({ username: '', password: '', role: 'user' });
+                    alert("User berhasil ditambahkan");
+                } catch (err) {
+                    console.error(err);
+                    alert("Gagal menambah user");
                 }
             };
 
+            const handleDeleteUser = async (id) => {
+                if(!confirm("Yakin hapus user ini?")) return;
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
+                } catch(err) {
+                    console.error(err);
+                    alert("Gagal menghapus user");
+                }
+            };
+
+            const handleChangePassword = async (id) => {
+                if(!newPass) return alert("Password tidak boleh kosong");
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), {
+                        password: newPass
+                    });
+                    setEditingPassId(null);
+                    setNewPass('');
+                    alert("Password berhasil diubah");
+                } catch(err) {
+                    console.error(err);
+                    alert("Gagal mengubah password");
+                }
+            };
+
+            // Existing Reset Functions
             const handleResetTransactions = async () => {
                 if (!confirm("PERINGATAN KERAS:\nAnda akan menghapus SEMUA DATA RIWAYAT TRANSAKSI.\nData yang dihapus TIDAK BISA DIKEMBALIKAN.\n\nKlik OK jika Anda yakin.")) return;
                 if (!confirm("Apakah Anda benar-benar yakin ingin mengosongkan data transaksi?")) return;
@@ -1185,19 +1266,13 @@
 
                  setIsResetting(true);
                  try {
-                    const qC = query(collection(db, 'artifacts', appId, 'public', 'data', 'customers'));
-                    const sC = await getDocs(qC);
-                    const pC = sC.docs.map(d => deleteDoc(d.ref));
-
-                    const qI = query(collection(db, 'artifacts', appId, 'public', 'data', 'items'));
-                    const sI = await getDocs(qI);
-                    const pI = sI.docs.map(d => deleteDoc(d.ref));
-
-                    const qT = query(collection(db, 'artifacts', appId, 'public', 'data', 'trucks'));
-                    const sT = await getDocs(qT);
-                    const pT = sT.docs.map(d => deleteDoc(d.ref));
-
-                    await Promise.all([...pC, ...pI, ...pT]);
+                    const collections = ['customers', 'items', 'trucks'];
+                    for (const colName of collections) {
+                        const q = query(collection(db, 'artifacts', appId, 'public', 'data', colName));
+                        const s = await getDocs(q);
+                        const p = s.docs.map(d => deleteDoc(d.ref));
+                        await Promise.all(p);
+                    }
                     alert("Semua master data berhasil dihapus.");
                  } catch (error) {
                      console.error(error);
@@ -1206,51 +1281,6 @@
                  setIsResetting(false);
             }
 
-            if (!isAuthenticated) {
-                return React.createElement("div", { className: "w-11/12 max-w-md mx-auto mt-10 bg-white p-6 md:p-8 rounded-xl border shadow-sm" },
-                    React.createElement("h2", { className: "text-xl font-bold text-center mb-6 flex items-center justify-center gap-2" }, 
-                        React.createElement(Settings, { className: "text-blue-500" }), "Akses Pengaturan"
-                    ),
-                    React.createElement("form", { onSubmit: handleLogin, className: "space-y-4" },
-                        React.createElement("div", null,
-                            React.createElement("label", { className: "block text-sm font-bold text-slate-500 mb-1" }, "Username"),
-                            React.createElement("input", { 
-                                type: "text", 
-                                className: "w-full p-2 border rounded-lg",
-                                value: loginData.username,
-                                onChange: e => setLoginData({...loginData, username: e.target.value})
-                            })
-                        ),
-                        React.createElement("div", null,
-                            React.createElement("label", { className: "block text-sm font-bold text-slate-500 mb-1" }, "Password"),
-                            React.createElement("input", { 
-                                type: "password", 
-                                className: "w-full p-2 border rounded-lg",
-                                value: loginData.password,
-                                onChange: e => setLoginData({...loginData, password: e.target.value})
-                            })
-                        ),
-                        React.createElement("button", { className: "w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700" }, "Masuk")
-                    )
-                );
-            }
-
-            const saveSettings = async () => {
-                setLoading(true);
-                try {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), {
-                        printConfig: coords,
-                        waConfig: waConfig,
-                        updatedAt: serverTimestamp()
-                    }, { merge: true });
-                    alert("Pengaturan Berhasil Disimpan!");
-                } catch (err) {
-                    console.error(err);
-                    alert("Gagal menyimpan");
-                }
-                setLoading(false);
-            };
-
             return React.createElement("div", { className: "bg-white p-4 md:p-6 rounded-xl border shadow-sm no-print space-y-6" },
                 React.createElement("h2", { className: "text-lg font-bold flex items-center gap-2 border-b pb-4" }, 
                     React.createElement(Settings, { className: "text-blue-500" }), " Pengaturan Aplikasi"
@@ -1258,6 +1288,7 @@
                 
                 React.createElement("div", { className: "flex gap-2 border-b overflow-x-auto hide-scrollbar" },
                     React.createElement("button", { onClick: () => setActiveTab('general'), className: `px-4 py-2 border-b-2 font-bold whitespace-nowrap ${activeTab === 'general' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400'}` }, "Umum"),
+                    React.createElement("button", { onClick: () => setActiveTab('users'), className: `px-4 py-2 border-b-2 font-bold whitespace-nowrap ${activeTab === 'users' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400'}` }, "Manajemen User"),
                     React.createElement("button", { onClick: () => setActiveTab('wa'), className: `px-4 py-2 border-b-2 font-bold whitespace-nowrap ${activeTab === 'wa' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400'}` }, "WhatsApp"),
                     React.createElement("button", { onClick: () => setActiveTab('print'), className: `px-4 py-2 border-b-2 font-bold whitespace-nowrap ${activeTab === 'print' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400'}` }, "Kalibrasi Cetak"),
                     React.createElement("button", { onClick: () => setActiveTab('reset'), className: `px-4 py-2 border-b-2 font-bold whitespace-nowrap ${activeTab === 'reset' ? 'border-red-500 text-red-600' : 'border-transparent text-slate-400'}` }, "Reset Data")
@@ -1267,6 +1298,91 @@
                     React.createElement(TrendingUp, { className: "text-blue-200 mx-auto mb-4", size: 48 }),
                     React.createElement("h3", {className: "font-bold text-lg"}, "My Trading v1.2"),
                     React.createElement("p", { className: "text-slate-500 text-sm" }, "Sistem Manajemen Transaksi & Logistik Terpadu")
+                ),
+
+                // USER MANAGEMENT TAB
+                activeTab === 'users' && React.createElement("div", { className: "space-y-6" },
+                    // Form Tambah User
+                    React.createElement("div", { className: "bg-slate-50 p-4 rounded-lg border border-slate-200" },
+                        React.createElement("h3", { className: "font-bold text-sm mb-3 flex items-center gap-2" }, 
+                            React.createElement(UserPlus, { size: 16 }), "Tambah User Baru"
+                        ),
+                        React.createElement("form", { onSubmit: handleAddUser, className: "flex flex-col md:flex-row gap-3" },
+                            React.createElement("input", { 
+                                placeholder: "Username", 
+                                className: "p-2 border rounded text-sm flex-1", 
+                                value: newUser.username, 
+                                onChange: e => setNewUser({...newUser, username: e.target.value}) 
+                            }),
+                            React.createElement("input", { 
+                                type: "text", 
+                                placeholder: "Password", 
+                                className: "p-2 border rounded text-sm flex-1", 
+                                value: newUser.password, 
+                                onChange: e => setNewUser({...newUser, password: e.target.value}) 
+                            }),
+                            React.createElement("select", { 
+                                className: "p-2 border rounded text-sm w-full md:w-32", 
+                                value: newUser.role, 
+                                onChange: e => setNewUser({...newUser, role: e.target.value}) 
+                            },
+                                React.createElement("option", { value: "user" }, "User"),
+                                React.createElement("option", { value: "admin" }, "Admin"),
+                                React.createElement("option", { value: "timbang" }, "Timbang")
+                            ),
+                            React.createElement("button", { type: "submit", className: "bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-blue-700" }, "Tambah")
+                        )
+                    ),
+                    
+                    // List User
+                    React.createElement("div", { className: "overflow-x-auto" },
+                        React.createElement("table", { className: "w-full text-sm text-left border rounded-lg overflow-hidden" },
+                            React.createElement("thead", { className: "bg-slate-100 font-bold" },
+                                React.createElement("tr", null,
+                                    React.createElement("th", { className: "p-3" }, "Username"),
+                                    React.createElement("th", { className: "p-3" }, "Role"),
+                                    React.createElement("th", { className: "p-3" }, "Password"),
+                                    React.createElement("th", { className: "p-3 text-right" }, "Aksi")
+                                )
+                            ),
+                            React.createElement("tbody", { className: "divide-y" },
+                                usersList.map(u => 
+                                    React.createElement("tr", { key: u.id },
+                                        React.createElement("td", { className: "p-3 font-medium" }, u.username),
+                                        React.createElement("td", { className: "p-3" }, 
+                                            React.createElement("span", { className: "bg-slate-100 px-2 py-1 rounded text-xs uppercase font-bold text-slate-600" }, u.role)
+                                        ),
+                                        React.createElement("td", { className: "p-3" }, 
+                                            editingPassId === u.id ? 
+                                            React.createElement("div", { className: "flex gap-2" },
+                                                React.createElement("input", { 
+                                                    className: "border p-1 rounded w-32", 
+                                                    value: newPass, 
+                                                    onChange: e => setNewPass(e.target.value),
+                                                    placeholder: "Password Baru" 
+                                                }),
+                                                React.createElement("button", { onClick: () => handleChangePassword(u.id), className: "text-green-600 font-bold" }, "OK"),
+                                                React.createElement("button", { onClick: () => setEditingPassId(null), className: "text-slate-400" }, "X")
+                                            ) : 
+                                            "******"
+                                        ),
+                                        React.createElement("td", { className: "p-3 text-right flex justify-end gap-3" },
+                                            React.createElement("button", { 
+                                                onClick: () => { setEditingPassId(u.id); setNewPass(''); }, 
+                                                className: "text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1",
+                                                title: "Ganti Password"
+                                            }, React.createElement(Key, { size: 14 }), "Ubah Pass"),
+                                            React.createElement("button", { 
+                                                onClick: () => handleDeleteUser(u.id), 
+                                                className: "text-red-400 hover:text-red-600 text-xs flex items-center gap-1",
+                                                title: "Hapus User"
+                                            }, React.createElement(Trash2, { size: 14 }), "Hapus")
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
                 ),
 
                 activeTab === 'wa' && React.createElement("div", { className: "space-y-4" },
@@ -1393,10 +1509,23 @@
                     }
                 };
                 initAuth();
+
+                // Seed Default Users if DB is Empty
+                const seedUsers = async () => {
+                    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+                    const snap = await getDocs(q);
+                    if(snap.empty) {
+                        console.log("Seeding default users...");
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {username: 'admin', password: 'admin123', role: 'admin'});
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {username: 'user', password: 'user123', role: 'user'});
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {username: 'timbang', password: 'timbang123', role: 'timbang'});
+                    }
+                }
                 
                 const unsubscribe = onAuthStateChanged(auth, (u) => {
                     setUser(u);
                     setLoading(false);
+                    if(u) seedUsers();
                 });
                 return () => unsubscribe();
             }, []);
