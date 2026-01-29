@@ -123,7 +123,7 @@
             Box, Search, History, Settings, Save, AlertCircle, Users, 
             Package, Printer, Calendar, FileText, X, Eye, AlignJustify, 
             TrendingUp, MessageSquare, Pencil, Trash2, FileSpreadsheet, Download, Send, Lock, Info, AlertTriangle, LogOut,
-            Scale, Receipt, Database, Server, Briefcase, MapPin, Navigation, Cloud, UserPlus, Key
+            Scale, Receipt, Database, Server, Briefcase, MapPin, Navigation, Cloud, UserPlus, Key, Menu
         } from 'lucide-react';
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -192,15 +192,15 @@
                     });
 
                     if (userFound) {
-                        onLogin(userFound.role);
+                        onLogin(userFound); // PASS FULL USER OBJECT
                     } else {
                         // FALLBACK: Cek hardcoded credentials jika DB belum terisi/gagal
                         if (username === 'admin' && password === 'admin123') {
-                            onLogin('admin');
+                            onLogin({ role: 'admin', username: 'admin' });
                         } else if (username === 'user' && password === 'user123') {
-                            onLogin('user');
+                            onLogin({ role: 'user', username: 'user' });
                         } else if (username === 'timbang' && password === 'timbang123') {
-                            onLogin('timbang');
+                            onLogin({ role: 'timbang', username: 'timbang' });
                         } else {
                             setError('Username atau Password salah!');
                         }
@@ -209,7 +209,7 @@
                     console.error("Login Error:", err);
                     // Fallback terakhir jika error koneksi
                     if (username === 'admin' && password === 'admin123') {
-                        onLogin('admin');
+                        onLogin({ role: 'admin', username: 'admin' });
                     } else {
                         setError('Terjadi kesalahan koneksi.');
                     }
@@ -220,11 +220,13 @@
             return React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-sky-50 p-4" },
                 React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm border border-sky-100" },
                     React.createElement("div", { className: "text-center mb-8" },
-                        React.createElement("div", { className: "w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-4" },
-                            React.createElement(Cloud, { className: "text-sky-600", size: 32 })
+                        // LOGO LOGIN: Background Merah, Icon Hijau Bold
+                        React.createElement("div", { className: "w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4" },
+                            React.createElement(TrendingUp, { className: "text-green-600", size: 32, strokeWidth: 3 })
                         ),
-                        React.createElement("h1", { className: "text-2xl font-bold text-slate-800 tracking-tight" }, "MY TRADING"),
-                        React.createElement("p", { className: "text-slate-500 text-sm font-medium" }, "Sistem Logistik Terpadu")
+                        // TEXT: Gold Pekat
+                        React.createElement("h1", { className: "text-2xl font-bold text-[#B8860B] tracking-tight" }, "MyTrading"),
+                        React.createElement("p", { className: "text-blue-600 text-sm font-medium" }, "Smart Trading Logistics Management")
                     ),
                     error && React.createElement("div", { className: "bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4 text-center font-bold border border-red-100" }, error),
                     React.createElement("form", { onSubmit: handleLogin, className: "space-y-5" },
@@ -254,7 +256,7 @@
                             className: "w-full bg-sky-600 text-white font-bold py-3.5 rounded-xl hover:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-200 hover:shadow-sky-300 disabled:opacity-70"
                         }, loading ? "Memeriksa..." : "MASUK SISTEM"),
                         React.createElement("div", { className: "text-center mt-6 text-xs text-slate-400 font-medium" },
-                           "Versi 1.4.3 - Database Auth Fix"
+                           "Versi 1.4.3 - MyTrading"
                         )
                     )
                 )
@@ -591,7 +593,7 @@
                 },
                 tujuan: { x: 20, y: 32, maxWidth: 80, lineHeight: 5 },
                 table: {
-                    startY: 68,     
+                    startY: 68,      
                     rowHeight: 6,    
                     cols: {          
                         kode: 12, nama: 42, uom: 95, qty_pesan: 110, qty_kirim: 130, berat: 150, total: 175
@@ -1177,9 +1179,21 @@
             
             // User Management State
             const [usersList, setUsersList] = useState([]);
-            const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
+            const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user', menus: [] });
             const [editingPassId, setEditingPassId] = useState(null);
             const [newPass, setNewPass] = useState('');
+
+            const AVAILABLE_MENUS = [
+                { id: 'transaction', label: 'Transaksi' },
+                { id: 'history', label: 'Riwayat' },
+                { id: 'tracking', label: 'Live Tracking' },
+                { id: 'recap', label: 'Rekap' },
+                { id: 'register', label: 'Armada' },
+                { id: 'customers', label: 'Customer' },
+                { id: 'transporters', label: 'Transporter' },
+                { id: 'items', label: 'Barang' },
+                { id: 'instruction', label: 'Panduan' }
+            ];
 
             useEffect(() => {
                 if (!user) return;
@@ -1220,20 +1234,37 @@
             };
 
             // User Management Functions
+            const toggleMenu = (menuId) => {
+                setNewUser(prev => {
+                    if (prev.menus.includes(menuId)) {
+                        return { ...prev, menus: prev.menus.filter(m => m !== menuId) };
+                    } else {
+                        return { ...prev, menus: [...prev.menus, menuId] };
+                    }
+                });
+            }
+
             const handleAddUser = async (e) => {
                 e.preventDefault();
                 if (!newUser.username || !newUser.password) return alert("Username dan Password wajib diisi");
                 
+                // FIX: Validasi Duplicate Username
+                const exists = usersList.some(u => u.username.toLowerCase() === newUser.username.toLowerCase());
+                if(exists) return alert("Gagal: Username sudah terdaftar! Gunakan yang lain.");
+
+                setLoading(true); // Manfaatkan state loading yg sudah ada
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
                         ...newUser,
                         createdAt: serverTimestamp()
                     });
-                    setNewUser({ username: '', password: '', role: 'user' });
+                    setNewUser({ username: '', password: '', role: 'user', menus: [] });
                     alert("User berhasil ditambahkan");
                 } catch (err) {
                     console.error(err);
-                    alert("Gagal menambah user");
+                    alert("Gagal menambah user: " + err.message);
+                } finally {
+                    setLoading(false);
                 }
             };
 
@@ -1243,7 +1274,7 @@
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
                 } catch(err) {
                     console.error(err);
-                    alert("Gagal menghapus user");
+                    alert("Gagal menghapus user: " + err.message);
                 }
             };
 
@@ -1258,7 +1289,7 @@
                     alert("Password berhasil diubah");
                 } catch(err) {
                     console.error(err);
-                    alert("Gagal mengubah password");
+                    alert("Gagal mengubah password: " + err.message);
                 }
             };
 
@@ -1316,9 +1347,13 @@
                 ),
 
                 activeTab === 'general' && React.createElement("div", { className: "text-center py-8" },
-                    React.createElement(TrendingUp, { className: "text-blue-200 mx-auto mb-4", size: 48 }),
-                    React.createElement("h3", {className: "font-bold text-lg"}, "My Trading v1.2"),
-                    React.createElement("p", { className: "text-slate-500 text-sm" }, "Sistem Manajemen Transaksi & Logistik Terpadu")
+                    // LOGO SETTINGS: Background Merah, Icon Hijau Bold
+                    React.createElement("div", { className: "w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4" },
+                        React.createElement(TrendingUp, { className: "text-green-600", size: 32, strokeWidth: 3 })
+                    ),
+                    // TEXT SETTINGS: Gold Pekat
+                    React.createElement("h3", {className: "font-bold text-lg text-[#B8860B]"}, "MyTrading v1.4.3"),
+                    React.createElement("p", { className: "text-blue-600 text-sm" }, "Smart Trading Logistics Management")
                 ),
 
                 // USER MANAGEMENT TAB
@@ -1328,30 +1363,55 @@
                         React.createElement("h3", { className: "font-bold text-sm mb-3 flex items-center gap-2" }, 
                             React.createElement(UserPlus, { size: 16 }), "Tambah User Baru"
                         ),
-                        React.createElement("form", { onSubmit: handleAddUser, className: "flex flex-col md:flex-row gap-3" },
-                            React.createElement("input", { 
-                                placeholder: "Username", 
-                                className: "p-2 border rounded text-sm flex-1", 
-                                value: newUser.username, 
-                                onChange: e => setNewUser({...newUser, username: e.target.value}) 
-                            }),
-                            React.createElement("input", { 
-                                type: "text", 
-                                placeholder: "Password", 
-                                className: "p-2 border rounded text-sm flex-1", 
-                                value: newUser.password, 
-                                onChange: e => setNewUser({...newUser, password: e.target.value}) 
-                            }),
-                            React.createElement("select", { 
-                                className: "p-2 border rounded text-sm w-full md:w-32", 
-                                value: newUser.role, 
-                                onChange: e => setNewUser({...newUser, role: e.target.value}) 
-                            },
-                                React.createElement("option", { value: "user" }, "User"),
-                                React.createElement("option", { value: "admin" }, "Admin"),
-                                React.createElement("option", { value: "timbang" }, "Timbang")
+                        React.createElement("form", { onSubmit: handleAddUser, className: "flex flex-col gap-3" },
+                            React.createElement("div", { className: "flex flex-col md:flex-row gap-3" },
+                                React.createElement("input", { 
+                                    placeholder: "Username", 
+                                    className: "p-2 border rounded text-sm flex-1", 
+                                    value: newUser.username, 
+                                    onChange: e => setNewUser({...newUser, username: e.target.value}) 
+                                }),
+                                React.createElement("input", { 
+                                    type: "text", 
+                                    placeholder: "Password", 
+                                    className: "p-2 border rounded text-sm flex-1", 
+                                    value: newUser.password, 
+                                    onChange: e => setNewUser({...newUser, password: e.target.value}) 
+                                }),
+                                React.createElement("select", { 
+                                    className: "p-2 border rounded text-sm w-full md:w-32", 
+                                    value: newUser.role, 
+                                    onChange: e => setNewUser({...newUser, role: e.target.value}) 
+                                },
+                                    React.createElement("option", { value: "user" }, "User"),
+                                    React.createElement("option", { value: "admin" }, "Admin"),
+                                    React.createElement("option", { value: "timbang" }, "Timbang")
+                                ),
+                                React.createElement("button", { 
+                                    type: "submit", 
+                                    disabled: loading,
+                                    className: "bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-blue-700 disabled:opacity-50" 
+                                }, loading ? "Menyimpan..." : "Tambah")
                             ),
-                            React.createElement("button", { type: "submit", className: "bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-blue-700" }, "Tambah")
+                            // MENU SELECTION CHECKBOXES
+                            React.createElement("div", { className: "w-full mt-2 p-3 bg-white rounded border border-slate-200" },
+                                React.createElement("p", { className: "text-xs font-bold text-slate-500 mb-2 flex items-center gap-1" }, 
+                                    React.createElement(Menu, { size: 12 }), "AKSES MENU:"
+                                ),
+                                React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-2" },
+                                    AVAILABLE_MENUS.map(m => (
+                                        React.createElement("label", { key: m.id, className: "flex items-center gap-2 text-xs cursor-pointer select-none" },
+                                            React.createElement("input", { 
+                                                type: "checkbox", 
+                                                checked: newUser.menus.includes(m.id), 
+                                                onChange: () => toggleMenu(m.id),
+                                                className: "accent-blue-600 rounded"
+                                            }),
+                                            m.label
+                                        )
+                                    ))
+                                )
+                            )
                         )
                     ),
                     
@@ -1369,7 +1429,11 @@
                             React.createElement("tbody", { className: "divide-y" },
                                 usersList.map(u => 
                                     React.createElement("tr", { key: u.id },
-                                        React.createElement("td", { className: "p-3 font-medium" }, u.username),
+                                        React.createElement("td", { className: "p-3 font-medium" }, 
+                                            u.username,
+                                            // Show indicator if custom menus set
+                                            u.menus && u.menus.length > 0 && React.createElement("span", { className: "ml-2 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded" }, "Custom Menu")
+                                        ),
                                         React.createElement("td", { className: "p-3" }, 
                                             React.createElement("span", { className: "bg-slate-100 px-2 py-1 rounded text-xs uppercase font-bold text-slate-600" }, u.role)
                                         ),
@@ -1512,7 +1576,8 @@
 
         const App = () => {
             const [user, setUser] = useState(null);
-            const [userRole, setUserRole] = useState(null); 
+            // Change userRole state to store full user data
+            const [userData, setUserData] = useState(null); 
             const [view, setView] = useState('transaction'); 
             const [loading, setLoading] = useState(true);
             const [trucks, setTrucks] = useState([]); 
@@ -1559,28 +1624,36 @@
             }, [user]);
 
             // Jika belum login ke "App Role", tampilkan login screen
-            if (!userRole) {
+            if (!userData) {
                 return React.createElement(LoginScreen, { 
-                    onLogin: (role) => {
-                        setUserRole(role);
-                        // Set view default berdasarkan role
-                        if (role === 'admin') setView('transaction'); 
-                        if (role === 'user') setView('transaction');
-                        if (role === 'timbang') setView('register');
+                    onLogin: (data) => {
+                        setUserData(data);
+                        // Set view default berdasarkan role atau menu pertama yang diizinkan
+                        if (data.role === 'admin') {
+                            setView('transaction'); 
+                        } else if (data.menus && data.menus.length > 0) {
+                            setView(data.menus[0]);
+                        } else if (data.role === 'user') {
+                            setView('transaction');
+                        } else if (data.role === 'timbang') {
+                            setView('register');
+                        }
                     } 
                 });
             }
 
             if (loading) return React.createElement('div', { className: "flex flex-col items-center justify-center h-screen bg-white" },
                 React.createElement("div", { className: "relative flex items-center justify-center w-24 h-24 mb-8" },
-                    React.createElement("div", { className: "absolute inset-0 border-4 border-blue-100 rounded-full" }),
-                    React.createElement("div", { className: "absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin" }),
-                    React.createElement(TrendingUp, { className: "text-blue-600", size: 32 })
+                    // LOADING SPINNER: Theme matched
+                    React.createElement("div", { className: "absolute inset-0 border-4 border-red-100 rounded-full" }),
+                    React.createElement("div", { className: "absolute inset-0 border-4 border-green-600 rounded-full border-t-transparent animate-spin" }),
+                    React.createElement(TrendingUp, { className: "text-green-600", size: 32, strokeWidth: 3 })
                 ),
-                React.createElement("h2", { className: "text-2xl font-black text-slate-800 mb-2 tracking-tight" }, "MY TRADING"),
+                // LOADING TEXT: Gold Pekat
+                React.createElement("h2", { className: "text-2xl font-black text-[#B8860B] mb-2 tracking-tight" }, "MyTrading"),
                 React.createElement("p", { className: "text-slate-500 font-medium animate-pulse" }, "Pengalihan server Mytrading MyScm..."),
                 React.createElement("div", { className: "mt-8 flex gap-2" },
-                    [0,1,2].map(i => React.createElement("div", { key: i, className: "w-2 h-2 bg-blue-600 rounded-full animate-bounce", style: { animationDelay: `${i * 0.1}s` } }))
+                    [0,1,2].map(i => React.createElement("div", { key: i, className: "w-2 h-2 bg-green-600 rounded-full animate-bounce", style: { animationDelay: `${i * 0.1}s` } }))
                 )
             );
 
@@ -1599,13 +1672,21 @@
 
             // Filter Menu Logic
             let menuItems = [];
+            const userRole = userData.role;
+
             if (userRole === 'admin') {
                 menuItems = allMenuItems;
-            } else if (userRole === 'user') {
-                // User: Transaksi, Tracking, & Rekap (ADDED RECAP)
-                menuItems = allMenuItems.filter(item => item.v === 'transaction' || item.v === 'tracking' || item.v === 'recap');
-            } else if (userRole === 'timbang') {
-                menuItems = allMenuItems.filter(item => item.v === 'register');
+            } else if (userData.menus && Array.isArray(userData.menus) && userData.menus.length > 0) {
+                // Jika user memiliki properti 'menus' khusus, gunakan itu
+                menuItems = allMenuItems.filter(item => userData.menus.includes(item.v));
+            } else {
+                // Fallback ke logika role lama jika tidak ada custom menu
+                if (userRole === 'user') {
+                    // User: Transaksi, Tracking, & Rekap
+                    menuItems = allMenuItems.filter(item => item.v === 'transaction' || item.v === 'tracking' || item.v === 'recap');
+                } else if (userRole === 'timbang') {
+                    menuItems = allMenuItems.filter(item => item.v === 'register');
+                }
             }
 
             return (
@@ -1614,9 +1695,13 @@
                     React.createElement("aside", { className: "hidden md:flex w-64 bg-sky-50 border-r border-sky-100 text-slate-700 flex-col h-screen sticky top-0 no-print" },
                         // Logo
                         React.createElement("div", { className: "h-16 flex items-center px-6 border-b border-sky-200 bg-sky-100/50" },
-                             React.createElement(TrendingUp, { className: "text-sky-600 mr-3", size: 24 }),
+                             // SIDEBAR LOGO: Background Merah, Icon Hijau Bold
+                             React.createElement("div", { className: "w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3" },
+                                React.createElement(TrendingUp, { className: "text-green-600", size: 20, strokeWidth: 3 })
+                             ),
                              React.createElement("div", null,
-                                React.createElement("h1", { className: "font-bold text-lg tracking-wider text-sky-800" }, "MY TRADING"),
+                                // SIDEBAR TEXT: Gold Pekat
+                                React.createElement("h1", { className: "font-bold text-lg tracking-wider text-[#B8860B]" }, "MyTrading"),
                                 React.createElement("p", { className: "text-[10px] text-sky-600" }, "Logistics System")
                              )
                         ),
@@ -1665,7 +1750,7 @@
                                 "Pengaturan"
                              ),
                              React.createElement("button", {
-                                onClick: () => setUserRole(null),
+                                onClick: () => setUserData(null),
                                 className: "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors"
                              },
                                 React.createElement(LogOut, { size: 18 }),
@@ -1676,16 +1761,20 @@
 
                     // MOBILE HEADER (Visible on Mobile)
                     React.createElement("header", { className: "md:hidden bg-sky-50 border-b border-sky-200 text-slate-800 p-4 flex justify-between items-center sticky top-0 z-20 no-print" },
-                         React.createElement("div", { className: "flex items-center gap-2" },
-                            React.createElement(TrendingUp, { size: 24, className: "text-sky-600" }),
-                            React.createElement("h1", { className: "font-bold text-sky-800" }, "My Trading")
-                         ),
-                         React.createElement("button", { onClick: () => setUserRole(null), className: "text-slate-500" }, React.createElement(LogOut, { size: 20 }))
+                          React.createElement("div", { className: "flex items-center gap-2" },
+                            // MOBILE LOGO
+                            React.createElement("div", { className: "w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center" },
+                                React.createElement(TrendingUp, { size: 20, className: "text-green-600", strokeWidth: 3 })
+                            ),
+                            // MOBILE TEXT
+                            React.createElement("h1", { className: "font-bold text-[#B8860B]" }, "MyTrading")
+                          ),
+                          React.createElement("button", { onClick: () => setUserData(null), className: "text-slate-500" }, React.createElement(LogOut, { size: 20 }))
                     ),
                     
                     // MOBILE NAV (Visible on Mobile)
                     React.createElement("div", { className: "md:hidden bg-white border-b border-slate-100 overflow-x-auto flex items-center gap-2 p-2 no-print shadow-sm" },
-                         menuItems.map(item => (
+                          menuItems.map(item => (
                             React.createElement("button", {
                                 key: item.v,
                                 onClick: () => setView(item.v),
@@ -1696,8 +1785,8 @@
                                 React.createElement(item.i, { size: 14 }),
                                 item.l
                             )
-                         )),
-                         userRole === 'admin' && React.createElement("button", { onClick: () => setView('settings'), className: "flex-shrink-0 p-2 text-slate-400 hover:text-slate-600" }, React.createElement(Settings, { size: 16 }))
+                          )),
+                          userRole === 'admin' && React.createElement("button", { onClick: () => setView('settings'), className: "flex-shrink-0 p-2 text-slate-400 hover:text-slate-600" }, React.createElement(Settings, { size: 16 }))
                     ),
 
                     // MAIN CONTENT
