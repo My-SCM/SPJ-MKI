@@ -1058,12 +1058,25 @@
             
             return React.createElement("div", { className: "space-y-3 no-print" },
                 React.createElement("h2", { className: "font-bold text-lg" }, "Log Transaksi"),
-                transactions.length === 0 ? React.createElement("p", {className: "text-center text-slate-400 py-10"}, "Belum ada riwayat.") : transactions.map(t => 
-                    React.createElement("div", { key: t.id, className: "bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center" },
+                transactions.length === 0 ? React.createElement("p", {className: "text-center text-slate-400 py-10"}, "Belum ada riwayat.") : transactions.map(t => {
+                    // PERBAIKAN LOGIKA TAMPILAN DATA (Agar tidak undefined)
+                    const nopolDisplay = t.no_truk || t.nopol || 'No Polisi?';
+                    const customerDisplay = t.customerName || (t.tujuan ? t.tujuan.split('\n')[0] : 'Customer?');
+                    
+                    let itemsDisplay = '-';
+                    if (t.items && Array.isArray(t.items) && t.items.length > 0) {
+                        // Gabungkan semua item menjadi satu string
+                        itemsDisplay = t.items.map(i => `${i.nama} (${i.qty_kirim} ${i.uom})`).join(', ');
+                    } else if (t.itemName) {
+                        // Fallback untuk data lama
+                        itemsDisplay = `${t.itemName} (${t.qty || 0} ${t.uom || ''})`;
+                    }
+
+                    return React.createElement("div", { key: t.id, className: "bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center" },
                         React.createElement("div", null, 
-                            React.createElement("p", { className: "font-black" }, t.nopol), 
-                            React.createElement("p", { className: "text-sm" }, t.customerName), 
-                            React.createElement("p", { className: "text-xs text-blue-600" }, `${t.itemName} (${t.qty} ${t.uom})`),
+                            React.createElement("p", { className: "font-black" }, nopolDisplay), 
+                            React.createElement("p", { className: "text-sm" }, customerDisplay), 
+                            React.createElement("p", { className: "text-xs text-blue-600" }, itemsDisplay),
                             t.status === 'ACTIVE' ? 
                                 React.createElement("span", { className: "text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-bold" }, "DALAM PROSES") :
                                 React.createElement("span", { className: "text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold" }, "SELESAI")
@@ -1072,8 +1085,8 @@
                             t.status === 'ACTIVE' && React.createElement("button", { onClick: () => handleFinish(t), className: "bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600 transition-colors" }, "SELESAI"), 
                             React.createElement("button", { onClick: () => handleDelete(t), className: "text-red-400 hover:text-red-600 p-2" }, React.createElement(Trash2, { size: 18 }))
                         )
-                    )
-                )
+                    );
+                })
             );
         };
 
