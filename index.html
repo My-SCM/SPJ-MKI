@@ -79,12 +79,12 @@
 
         // Konfigurasi Firebase
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyBhL4pBXzoaSkNjHWe524KQLAhd335qITs",
-            authDomain: "logistik-tracker-app.firebaseapp.com",
-            projectId: "logistik-tracker-app",
-            storageBucket: "logistik-tracker-app.firebasestorage.app",
-            messagingSenderId: "417931787688",
-            appId: "1:417931787688:web:e0dedef7fb2acfc33ab19d"
+            apiKey: "AIzaSyCDb-ofn2ELU6mXsFPgyhT1MVPLsUPKNhg",
+            authDomain: "spj-mki.firebaseapp.com",
+            projectId: "spj-mki",
+            storageBucket: "spj-mki.firebasestorage.app",
+            messagingSenderId: "424266024897",
+            appId: "1:424266024897:web:0d0b32610352120a665140"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -120,7 +120,7 @@
                 // HARDCODED CREDENTIALS
                 if (username === 'admin' && password === 'admin123') {
                     onLogin('admin');
-                } else if (username === 'scm' && password === 'scm123') {
+                } else if (username === 'transporter' && password === 'transporter123') {
                     onLogin('transporter');
                 } else {
                     setError('Username atau Password salah!');
