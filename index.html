@@ -130,6 +130,19 @@
 
         const TRUCK_TYPES = ['CDD', 'TRONTON', 'DUMPTRUK', 'WINGBOX', 'KONTAINER', 'BOX', 'MOBIL PRIBADI'];
 
+        // Default Coordinate Configuration (mm) - FIXED: Re-added missing constant
+        const DEFAULT_COORDS = {
+            date: { top: 35, left: 140, label: 'Tanggal' },
+            nopol: { top: 42, left: 140, label: 'No Polisi' },
+            customerName: { top: 52, left: 20, label: 'Nama Customer' },
+            customerAddress: { top: 58, left: 20, label: 'Alamat Customer' },
+            itemName: { top: 85, left: 15, label: 'Nama Barang' },
+            qty: { top: 85, left: 100, label: 'Quantity' },
+            uom: { top: 85, left: 130, label: 'Satuan' },
+            notes: { top: 95, left: 15, label: 'Keterangan' },
+            driver: { top: 125, left: 75, label: 'Nama Driver' }
+        };
+
         // --- TransactionForm Component Baru ---
         const TransactionForm = ({ user }) => {
             // Data Master States
@@ -1204,9 +1217,6 @@
                                 React.createElement("tr", null,
                                     React.createElement("th", { className: "p-3" }, "Nama"),
                                     React.createElement("th", { className: "p-3" }, "Alamat"),
-                                    React.createElement("th", { className: "p-3" }, "No Tiket"), // NEW
-                                    React.createElement("th", { className: "p-3" }, "Netto (Kg)"), // NEW
-                                    React.createElement("th", { className: "p-3" }, "Tipe"),
                                     React.createElement("th", { className: "p-3 text-right" }, "Aksi")
                                 )
                             ),
@@ -1622,7 +1632,6 @@
             );
         };
 
-        // SETTINGS PAGE
         const SettingsPage = ({ user }) => {
             const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [loginData, setLoginData] = useState({ username: '', password: '' });
